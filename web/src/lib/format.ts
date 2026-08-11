@@ -4,6 +4,9 @@ export function relativeTime(value?: string | null): string {
   if (!value) return "—";
   try {
     const date = typeof value === "string" ? parseISO(value) : new Date(value);
+    if (date.getTime() > Date.now()) {
+      return "just now";
+    }
     return formatDistanceToNowStrict(date, { addSuffix: true });
   } catch {
     return "—";

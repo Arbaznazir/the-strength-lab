@@ -363,31 +363,47 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 	var totalPosts int
 	_ = a.DB.QueryRow(`SELECT COUNT(*) FROM posts WHERE thread_id=$1`, t.ID).Scan(&totalPosts)
 
+	var opID string
+	if err := a.DB.QueryRow(`
+		SELECT id::text FROM posts WHERE thread_id=$1 ORDER BY created_at ASC, id ASC LIMIT 1
+	`, t.ID).Scan(&opID); err != nil {
+		writeError(w, http.StatusInternalServerError, "opening post lookup failed")
+		return
+	}
+
+	replyTotal := totalPosts - 1
+	if replyTotal < 0 {
+		replyTotal = 0
+	}
+
 	page := 1
 	if highlight := r.URL.Query().Get("postId"); highlight != "" {
-		var pos int
-		// Newest-first: page by how many posts are newer-or-equal
-		err := a.DB.QueryRow(`
-			SELECT COUNT(*) FROM posts
-			WHERE thread_id=$1 AND created_at >= (
-			  SELECT created_at FROM posts WHERE id=$2 AND thread_id=$1
-			)
-		`, t.ID, highlight).Scan(&pos)
-		if err == nil && pos > 0 {
-			page = (pos-1)/DefaultPageSize + 1
+		if highlight == opID {
+			page = 1
+		} else {
+			var pos int
+			err := a.DB.QueryRow(`
+				SELECT COUNT(*) FROM posts
+				WHERE thread_id=$1 AND id <> $2 AND created_at >= (
+				  SELECT created_at FROM posts WHERE id=$3 AND thread_id=$1
+				)
+			`, t.ID, opID, highlight).Scan(&pos)
+			if err == nil && pos > 0 {
+				page = (pos-1)/DefaultPageSize + 1
+			}
 		}
 	} else {
 		page = parsePage(r)
 	}
 
-	pages, offset, page := paginate(totalPosts, page, DefaultPageSize)
+	pages, offset, page := paginate(replyTotal, page, DefaultPageSize)
 	perPage := DefaultPageSize
 
 	watched := a.threadWatchStatus(userID, t.ID)
 
-	rows, err := a.DB.Query(`
+	postSelect := `
 		SELECT p.id::text, p.thread_id::text, p.body, p.reaction_count, p.created_at, p.updated_at,
-		       `+userSelectPrefix("u")+`,
+		       ` + userSelectPrefix("u") + `,
 		       EXISTS(SELECT 1 FROM reactions r WHERE r.post_id=p.id AND r.user_id=$2),
 		       qp.id::text, qp.body,
 		       qu.id::text, qu.username, COALESCE(NULLIF(qu.display_name,''), qu.username), qu.title, qu.bio, qu.avatar_url, qu.banner_url,
@@ -396,10 +412,31 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 		JOIN users u ON u.id=p.author_id
 		LEFT JOIN posts qp ON qp.id = p.quoted_post_id
 		LEFT JOIN users qu ON qu.id = qp.author_id
-		WHERE p.thread_id=$1
-		ORDER BY p.created_at DESC
-		LIMIT $3 OFFSET $4
-	`, t.ID, nullableUUID(userID), perPage, offset)
+	`
+
+	var openingPost *models.Post
+	opRows, err := a.DB.Query(postSelect+` WHERE p.thread_id=$1 AND p.id=$3`, t.ID, nullableUUID(userID), opID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "opening post query failed")
+		return
+	}
+	if opRows.Next() {
+		p, err := scanPostRow(opRows, true)
+		if err != nil {
+			opRows.Close()
+			writeError(w, http.StatusInternalServerError, "scan failed")
+			return
+		}
+		p.Attachments = []models.Attachment{}
+		openingPost = &p
+	}
+	opRows.Close()
+
+	rows, err := a.DB.Query(postSelect+`
+		WHERE p.thread_id=$1 AND p.id <> $4
+		ORDER BY p.created_at DESC, p.id DESC
+		LIMIT $3 OFFSET $5
+	`, t.ID, nullableUUID(userID), perPage, opID, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -408,6 +445,9 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 
 	posts := []models.Post{}
 	postIDs := []string{}
+	if openingPost != nil {
+		postIDs = append(postIDs, openingPost.ID)
+	}
 	for rows.Next() {
 		p, err := scanPostRow(rows, true)
 		if err != nil {
@@ -419,6 +459,11 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 		postIDs = append(postIDs, p.ID)
 	}
 	if atts, err := a.attachmentsForPosts(postIDs); err == nil {
+		if openingPost != nil {
+			if list, ok := atts[openingPost.ID]; ok {
+				openingPost.Attachments = list
+			}
+		}
 		for i := range posts {
 			if list, ok := atts[posts[i].ID]; ok {
 				posts[i].Attachments = list
@@ -426,16 +471,20 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.attachUserTags(&t.Author)
+	if openingPost != nil {
+		a.attachUserTags(&openingPost.Author)
+	}
 	for i := range posts {
 		a.attachUserTags(&posts[i].Author)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"thread":     t,
-		"posts":      posts,
-		"page":       page,
-		"pages":      pages,
-		"totalPosts": totalPosts,
-		"watched":    watched,
+		"thread":      t,
+		"openingPost": openingPost,
+		"posts":       posts,
+		"page":        page,
+		"pages":       pages,
+		"totalPosts":  totalPosts,
+		"watched":     watched,
 	})
 }
 

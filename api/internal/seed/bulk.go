@@ -269,7 +269,14 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 			author := pickActiveMember(rng, members, th.created)
 			at := th.created.Add(time.Duration(r+1) * time.Duration(30+rng.Intn(18*3600)) * time.Second)
 			if at.After(now) {
-				at = now.Add(-time.Duration(rng.Intn(3600)) * time.Second)
+				// Keep replies in chronological order when clamping to the past.
+				at = now.Add(-time.Duration(replies-r) * time.Minute)
+				if at.Before(lastAt) {
+					at = lastAt.Add(time.Duration(1+rng.Intn(5)) * time.Minute)
+				}
+				if at.After(now) {
+					at = now.Add(-time.Second)
+				}
 			}
 			if at.Before(lastAt) {
 				at = lastAt.Add(time.Duration(5+rng.Intn(120)) * time.Minute)

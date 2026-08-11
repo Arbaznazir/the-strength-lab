@@ -34,6 +34,7 @@ export default function ThreadPageInner({
   const { user } = useAuth();
   const staff = isStaff(user);
   const [thread, setThread] = useState<Thread | null>(null);
+  const [openingPost, setOpeningPost] = useState<Post | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -55,6 +56,7 @@ export default function ThreadPageInner({
       else qs.set("page", String(pageNum));
       const data = await apiFetch<{
         thread: Thread;
+        openingPost?: Post | null;
         posts: Post[];
         page: number;
         pages: number;
@@ -62,6 +64,7 @@ export default function ThreadPageInner({
         watched: boolean;
       }>(`/threads/${slug}?${qs.toString()}`);
       setThread(data.thread);
+      setOpeningPost(data.openingPost ?? null);
       setPosts(data.posts);
       setPage(data.page);
       setPages(data.pages);
@@ -88,7 +91,7 @@ export default function ThreadPageInner({
 
   useEffect(() => {
     const hashPost = pendingHashRef.current || postIdFromHash();
-    if (!hashPost || !posts.length) return;
+    if (!hashPost || (!openingPost && !posts.length)) return;
     const el = document.getElementById(`post-${hashPost}`);
     if (el) {
       window.requestAnimationFrame(() => {
@@ -100,7 +103,7 @@ export default function ThreadPageInner({
       });
       pendingHashRef.current = "";
     }
-  }, [posts, page]);
+  }, [posts, openingPost, page]);
 
   function scrollToReply(prefill?: string, quoteId?: string) {
     if (prefill) setReply(prefill);
@@ -255,11 +258,34 @@ export default function ThreadPageInner({
       ) : null}
 
       <div className="space-y-4">
+        {openingPost ? (
+          <PostCard
+            key={openingPost.id}
+            post={openingPost}
+            index={0}
+            threadSlug={slug}
+            threadTitle={thread?.title}
+            canReply={Boolean(user && (!thread?.isLocked || staff))}
+            onReply={(p) =>
+              scrollToReply(`@${p.author.username} `, undefined)
+            }
+            onQuote={(p) =>
+              scrollToReply(
+                `> ${p.body.split("\n").join("\n> ")}\n\n`,
+                p.id,
+              )
+            }
+            onDeleted={() => void load(page)}
+          />
+        ) : null}
         {posts.map((post, i) => (
           <PostCard
             key={post.id}
             post={post}
-            index={Math.max(0, totalPosts - ((page - 1) * PAGE_SIZE + i) - 1)}
+            index={Math.max(
+              1,
+              totalPosts - ((page - 1) * PAGE_SIZE + i) - 1,
+            )}
             threadSlug={slug}
             threadTitle={thread?.title}
             canReply={Boolean(user && (!thread?.isLocked || staff))}
