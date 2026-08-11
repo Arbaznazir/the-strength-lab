@@ -4,7 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { formatCount } from "@/lib/format";
+import { PAGE_SIZE } from "@/lib/pagination";
 import type { UserPublic } from "@/lib/types";
+import { Pagination } from "@/components/Pagination";
 import {
   MemberLeaderboard,
   MemberListRow,
@@ -55,11 +57,20 @@ function MembersInner() {
   const router = useRouter();
   const view = parseView(searchParams.get("view"));
   const query = searchParams.get("q")?.trim() ?? "";
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
 
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
   const [members, setMembers] = useState<UserPublic[]>([]);
+  const [listTotal, setListTotal] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  function goToPage(next: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next <= 1) params.delete("page");
+    else params.set("page", String(next));
+    router.push(`/members?${params.toString()}`);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -68,12 +79,16 @@ function MembersInner() {
       setError("");
       try {
         if (query.length >= 2) {
-          const data = await apiFetch<{ members: UserPublic[] }>(
-            `/members?q=${encodeURIComponent(query)}&limit=50`,
+          const data = await apiFetch<{
+            members: UserPublic[];
+            total?: number;
+          }>(
+            `/members?q=${encodeURIComponent(query)}&page=${page}&limit=${PAGE_SIZE}`,
             { auth: false },
           );
           if (!cancelled) {
             setMembers(data.members);
+            setListTotal(data.total ?? data.members.length);
             if (!overview) {
               const ov = await apiFetch<OverviewPayload>("/members/overview", {
                 auth: false,
@@ -88,15 +103,20 @@ function MembersInner() {
           if (!cancelled) {
             setOverview(data);
             setMembers([]);
+            setListTotal(0);
           }
         } else {
           const sort = sortByView[view];
-          const data = await apiFetch<{ members: UserPublic[] }>(
-            `/members?sort=${sort}&limit=50`,
+          const data = await apiFetch<{
+            members: UserPublic[];
+            total?: number;
+          }>(
+            `/members?sort=${sort}&page=${page}&limit=${PAGE_SIZE}`,
             { auth: false },
           );
           if (!cancelled) {
             setMembers(data.members);
+            setListTotal(data.total ?? data.members.length);
             if (!overview) {
               const ov = await apiFetch<OverviewPayload>("/members/overview", {
                 auth: false,
@@ -116,7 +136,7 @@ function MembersInner() {
     return () => {
       cancelled = true;
     };
-  }, [view, query]);
+  }, [view, query, page]);
 
   const sidebarNewest = overview?.newest ?? [];
   const staff = overview?.staff ?? [];
@@ -176,6 +196,7 @@ function MembersInner() {
               ) : (
                 <p className="text-[var(--muted)]">No members matched.</p>
               )}
+              <Pagination page={page} total={listTotal} onPage={goToPage} />
             </section>
           ) : view === "overview" && overview ? (
             <>
@@ -217,6 +238,7 @@ function MembersInner() {
                   </li>
                 ))}
               </ul>
+              <Pagination page={page} total={listTotal} onPage={goToPage} />
             </section>
           ) : null}
         </div>

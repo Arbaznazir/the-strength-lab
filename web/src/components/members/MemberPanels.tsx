@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import clsx from "clsx";
 import type { UserPublic } from "@/lib/types";
 import { formatCount } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge, TagBadges } from "@/components/TagBadge";
 
 export type LeaderboardMetric = "messages" | "reactions" | "points";
 
@@ -69,9 +69,6 @@ export function MemberLeaderboard({
 }
 
 export function MemberListRow({ member }: { member: UserPublic }) {
-  const isStaff =
-    member.role === "admin" || member.role === "moderator";
-
   return (
     <Link
       href={`/members/${member.username}`}
@@ -81,25 +78,16 @@ export function MemberListRow({ member }: { member: UserPublic }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-medium">{member.displayName}</p>
-          {isStaff ? (
-            <span
-              className={clsx(
-                "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                member.role === "admin"
-                  ? "bg-[var(--accent-dim)] text-[var(--accent)]"
-                  : "bg-[color-mix(in_oklab,var(--staff)_18%,transparent)] text-[var(--staff)]",
-              )}
-            >
-              {member.role}
-            </span>
-          ) : null}
+          <RoleBadge role={member.role} />
+          <TagBadges tags={member.tags} />
         </div>
         <p className="mt-0.5 truncate text-sm text-[var(--muted)]">
           @{member.username}
           {member.title ? ` · ${member.title}` : ""}
         </p>
         <p className="mt-1 text-xs text-[var(--muted)] sm:hidden">
-          {formatCount(member.messageCount)} msgs · {formatCount(member.trophyPoints)} pts
+          {formatCount(member.messageCount)} msgs ·{" "}
+          {formatCount(member.trophyPoints)} pts
         </p>
       </div>
       <dl className="hidden shrink-0 gap-4 text-right text-xs sm:grid sm:grid-cols-3">
@@ -147,16 +135,10 @@ export function StaffGrid({ staff }: { staff: UserPublic[] }) {
             <Avatar user={member} size="lg" link={false} />
             <div className="min-w-0">
               <p className="truncate font-medium">{member.displayName}</p>
-              <p
-                className={clsx(
-                  "mt-0.5 text-xs capitalize",
-                  member.role === "admin"
-                    ? "text-[var(--accent)]"
-                    : "text-[var(--staff)]",
-                )}
-              >
-                {member.role}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <RoleBadge role={member.role} />
+                <TagBadges tags={member.tags} />
+              </div>
               {member.title ? (
                 <p className="mt-1 truncate text-xs text-[var(--muted)]">
                   {member.title}
@@ -188,9 +170,9 @@ export function NewestMembersGrid({ members }: { members: UserPublic[] }) {
             link={false}
             className="transition-transform group-hover:scale-105"
           />
-          <span className="w-full truncate text-center text-[10px] text-[var(--muted)] group-hover:text-[var(--accent)]">
-            {member.username}
-          </span>
+          <p className="w-full truncate text-center text-[11px] text-[var(--muted)] group-hover:text-[var(--fg)]">
+            {member.displayName}
+          </p>
         </Link>
       ))}
     </div>

@@ -109,7 +109,7 @@ func parseSmartQuery(q string, r *http.Request) searchOpts {
 	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 && n <= 50 {
 		opts.Limit = n
 	} else {
-		opts.Limit = 25
+		opts.Limit = DefaultPageSize
 	}
 	if v := strings.TrimSpace(r.URL.Query().Get("author")); v != "" {
 		opts.Author = strings.TrimPrefix(v, "@")

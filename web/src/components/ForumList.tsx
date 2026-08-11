@@ -13,20 +13,20 @@ export function ForumList({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <div className="space-y-12">
+    <div className="min-w-0 space-y-12">
       {categories.map((cat, i) => (
         <section
           key={cat.id}
-          className="stagger-item"
+          className="stagger-item min-w-0"
           style={{ animationDelay: `${i * 70}ms` }}
         >
           <div className="cat-label">
-            <div>
-              <h3 className="text-lg font-semibold tracking-tight text-[var(--fg)]">
+            <div className="min-w-0">
+              <h3 className="break-words text-lg font-semibold tracking-tight text-[var(--fg)]">
                 {cat.name}
               </h3>
               {cat.description ? (
-                <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
+                <p className="mt-1 max-w-2xl break-words text-sm text-[var(--muted)]">
                   {cat.description}
                 </p>
               ) : null}

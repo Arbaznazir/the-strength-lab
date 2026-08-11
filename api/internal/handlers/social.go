@@ -226,13 +226,21 @@ func (a *API) ListProfilePosts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "member not found")
 		return
 	}
+	page := parsePage(r)
+	perPage := DefaultPageSize
+	var total int
+	if err := a.DB.QueryRow(`SELECT COUNT(*) FROM profile_posts WHERE profile_user_id=$1`, user.ID).Scan(&total); err != nil {
+		writeError(w, http.StatusInternalServerError, "query failed")
+		return
+	}
+	pages, offset, page := paginate(total, page, perPage)
 	rows, err := a.DB.Query(`
 		SELECT `+profilePostSelectSQL()+`
 		FROM profile_posts pp
 		JOIN users u ON u.id=pp.author_id
 		JOIN users pu ON pu.id=pp.profile_user_id
-		WHERE pp.profile_user_id=$1 ORDER BY pp.created_at DESC LIMIT 50
-	`, user.ID)
+		WHERE pp.profile_user_id=$1 ORDER BY pp.created_at DESC LIMIT $2 OFFSET $3
+	`, user.ID, perPage, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -245,7 +253,13 @@ func (a *API) ListProfilePosts(w http.ResponseWriter, r *http.Request) {
 			list = append(list, p)
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"posts": list, "profileUser": user})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"posts":       list,
+		"profileUser": user,
+		"page":        page,
+		"pages":       pages,
+		"total":       total,
+	})
 }
 
 func (a *API) CreateProfilePost(w http.ResponseWriter, r *http.Request) {

@@ -6,8 +6,9 @@ import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { relativeTime } from "@/lib/format";
-import type { UserPublic } from "@/lib/types";
+import type { UserPublic, UserTag } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
+import { TagBadge, TagBadges, RoleBadge } from "@/components/TagBadge";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 
 type AdminUser = UserPublic & {
@@ -23,6 +24,13 @@ type Role = {
   isProtected: boolean;
 };
 
+type ProfileTag = {
+  slug: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+};
+
 const PAGE_SIZE = 20;
 
 export default function AdminUsersPage() {
@@ -33,6 +41,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [profileTags, setProfileTags] = useState<ProfileTag[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [newRoleSlug, setNewRoleSlug] = useState("");
@@ -45,6 +54,15 @@ export default function AdminUsersPage() {
     try {
       const data = await apiFetch<{ roles: Role[] }>("/admin/roles");
       setRoles(data.roles);
+    } catch {
+      /* optional */
+    }
+  }
+
+  async function loadProfileTags() {
+    try {
+      const data = await apiFetch<{ tags: ProfileTag[] }>("/admin/tags");
+      setProfileTags(data.tags);
     } catch {
       /* optional */
     }
@@ -70,6 +88,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     void loadRoles();
+    void loadProfileTags();
     void load("", 1);
   }, []);
 
@@ -83,6 +102,25 @@ export default function AdminUsersPage() {
     } finally {
       setBusy("");
     }
+  }
+
+  async function setUserTags(id: string, tags: string[]) {
+    setBusy(id);
+    try {
+      await apiFetch(`/admin/users/${id}/tags`, { method: "PUT", body: { tags } });
+      await load(q, page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Tag update failed");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function toggleUserTag(u: AdminUser, slug: string) {
+    const current = new Set((u.tags ?? []).map((t) => t.slug));
+    if (current.has(slug)) current.delete(slug);
+    else current.add(slug);
+    void setUserTags(u.id, [...current]);
   }
 
   async function createRole(e: React.FormEvent) {
@@ -114,10 +152,6 @@ export default function AdminUsersPage() {
     e.preventDefault();
     setPage(1);
     void load(q, 1);
-  }
-
-  function roleLabel(slug: string) {
-    return roles.find((r) => r.slug === slug)?.label ?? slug;
   }
 
   function canSuspend(u: AdminUser) {
@@ -219,9 +253,8 @@ export default function AdminUsersPage() {
                   {u.displayName}
                 </Link>
                 <span className="text-xs text-[var(--muted)]">@{u.username}</span>
-                <span className="rounded bg-[var(--accent-dim)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--accent)]">
-                  {roleLabel(u.role)}
-                </span>
+                <RoleBadge role={u.role} />
+                <TagBadges tags={u.tags} />
                 {u.banned ? (
                   <span className="rounded bg-[var(--danger)]/15 px-1.5 py-0.5 text-[10px] uppercase text-[var(--danger)]">
                     Banned
@@ -276,6 +309,28 @@ export default function AdminUsersPage() {
                   )
                 ) : null}
               </div>
+              {profileTags.length ? (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="w-full text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                    Profile tags
+                  </span>
+                  {profileTags.map((t) => {
+                    const on = (u.tags ?? []).some((x) => x.slug === t.slug);
+                    return (
+                      <button
+                        key={t.slug}
+                        type="button"
+                        disabled={busy === u.id}
+                        onClick={() => toggleUserTag(u, t.slug)}
+                        className={on ? "opacity-100" : "opacity-40 hover:opacity-80"}
+                        title={on ? "Remove tag" : "Assign tag"}
+                      >
+                        <TagBadge tag={t} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           </li>
         ))}

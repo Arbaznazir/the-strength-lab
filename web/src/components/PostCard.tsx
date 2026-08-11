@@ -13,6 +13,7 @@ import { postShareURL } from "@/lib/site";
 import { renderTextWithMentions } from "@/lib/mentions";
 import { Avatar } from "./Avatar";
 import { ShareModal } from "./ShareModal";
+import { RoleBadge, TagBadges } from "./TagBadge";
 
 export function PostCard({
   post,
@@ -118,9 +119,15 @@ export function PostCard({
             >
               {post.author.displayName}
             </Link>
-            <p className={clsx("mt-0.5 text-[11px]", isAuthorStaff ? "text-[var(--staff)]" : "text-[var(--muted)]")}>
-              {post.author.title || post.author.role}
-            </p>
+            {post.author.title ? (
+              <p className={clsx("mt-0.5 text-[11px]", isAuthorStaff ? "text-[var(--staff)]" : "text-[var(--muted)]")}>
+                {post.author.title}
+              </p>
+            ) : null}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <RoleBadge role={post.author.role} />
+              <TagBadges tags={post.author.tags} />
+            </div>
             <p className="mt-2 hidden text-[11px] text-[var(--muted)] md:block">
               {post.author.messageCount} posts · {post.author.trophyPoints} pts
             </p>

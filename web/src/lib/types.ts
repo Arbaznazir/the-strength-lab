@@ -1,3 +1,9 @@
+export type UserTag = {
+  slug: string;
+  label: string;
+  color: string;
+};
+
 export type UserPublic = {
   id: string;
   username: string;
@@ -12,6 +18,7 @@ export type UserPublic = {
   trophyPoints: number;
   lastSeenAt?: string;
   createdAt: string;
+  tags?: UserTag[];
 };
 
 export type Category = {

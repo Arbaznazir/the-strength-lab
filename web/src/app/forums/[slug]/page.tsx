@@ -13,6 +13,7 @@ import {
   type ThreadSort,
 } from "@/components/ThreadList";
 import { Sidebar } from "@/components/Sidebar";
+import { Pagination } from "@/components/Pagination";
 import { ImageAttach } from "@/components/ImageAttach";
 import { MentionInput } from "@/components/MentionInput";
 
@@ -36,6 +37,7 @@ export default function ForumPage({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [sort, setSort] = useState<ThreadSort>("last_activity");
   const [filter, setFilter] = useState<ThreadFilter>("");
   const [error, setError] = useState("");
@@ -57,8 +59,13 @@ export default function ForumPage({
         { auth: false },
       );
       setForum(data.forum);
-      setThreads(data.threads);
+      setThreads(data.threads ?? []);
       setPages(data.pages || 1);
+      setTotal(data.total ?? data.threads?.length ?? 0);
+      // If API clamped the page (e.g. stale UI asked for page 2), sync state
+      if (data.page && data.page !== page) {
+        setPage(data.page);
+      }
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load forum");
@@ -120,16 +127,27 @@ export default function ForumPage({
           ) : null}
         </div>
         {user ? (
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setShowForm((v) => !v)}
-          >
-            {showForm ? "Cancel" : "New thread"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/new-post?forum=${encodeURIComponent(slug)}`}
+              className="btn-primary"
+            >
+              New post
+            </Link>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setShowForm((v) => !v)}
+            >
+              {showForm ? "Cancel quick post" : "Quick post here"}
+            </button>
+          </div>
         ) : (
-          <Link href="/login" className="btn-ghost">
-            Log in to post
+          <Link
+            href={`/login?next=${encodeURIComponent(`/new-post?forum=${slug}`)}`}
+            className="btn-primary"
+          >
+            New post
           </Link>
         )}
       </div>
@@ -170,39 +188,12 @@ export default function ForumPage({
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
 
       <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_13rem] md:gap-6 lg:grid-cols-[minmax(0,1fr)_16.5rem] lg:gap-12">
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4 overflow-x-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {pages > 1 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {Array.from({ length: pages }, (_, idx) => idx + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setPage(n)}
-                    className={
-                      n === page
-                        ? "min-w-9 border border-[var(--accent)] bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--accent-ink)]"
-                        : "min-w-9 border border-[var(--line)] px-3 py-1.5 text-sm font-semibold hover:border-[var(--accent)]"
-                    }
-                  >
-                    {n}
-                  </button>
-                ))}
-                {page < pages ? (
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => p + 1)}
-                    className="border border-[var(--line)] px-3 py-1.5 text-sm font-semibold hover:border-[var(--accent)]"
-                  >
-                    Next
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <span className="text-sm text-[var(--muted)]">
-                {threads.length} thread{threads.length === 1 ? "" : "s"}
-              </span>
-            )}
+            <span className="text-sm text-[var(--muted)]">
+              {total || threads.length} thread{(total || threads.length) === 1 ? "" : "s"}
+              {pages > 1 ? ` · page ${page} of ${pages}` : ""}
+            </span>
 
             <ThreadFilters
               sort={sort}
@@ -215,11 +206,14 @@ export default function ForumPage({
             />
           </div>
 
-          <ThreadList
-            threads={threads}
+          <ThreadList threads={threads} />
+
+          <Pagination
             page={page}
             pages={pages}
-            onPageChange={setPage}
+            total={total || threads.length}
+            onPage={setPage}
+            className="mt-2"
           />
         </div>
         <Sidebar />

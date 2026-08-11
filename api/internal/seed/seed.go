@@ -51,6 +51,106 @@ func Run(db *sql.DB) error {
 			return fmt.Errorf("bulk seed: %w", err)
 		}
 	}
+
+	if err := ensureTrustedStores(db, forumIDs); err != nil {
+		return fmt.Errorf("trusted stores seed: %w", err)
+	}
+	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
+		return fmt.Errorf("user tags seed: %w", err)
+	}
+	return nil
+}
+
+func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM trusted_stores`).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	log.Println("seeding trusted stores & GH sources…")
+
+	type store struct {
+		name, slug, tag, color, banner, link, desc, forumKey string
+		order                                                int
+	}
+	stores := []store{
+		{
+			name: "Iron Forge Supply", slug: "iron-forge", tag: "Trusted Source", color: "#d4ff3a",
+			banner: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80",
+			link: "https://example.com/iron-forge", desc: "Gear, belts, and recovery tools for serious lifters.",
+			forumKey: "supplements", order: 1,
+		},
+		{
+			name: "Peak GH Labs", slug: "peak-gh", tag: "GH Source", color: "#7dd3c0",
+			banner: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80",
+			link: "https://example.com/peak-gh", desc: "Research-backed peptide & recovery discussion partner.",
+			forumKey: "hormone-health", order: 2,
+		},
+		{
+			name: "BarPath Nutrition", slug: "barpath-nutrition", tag: "Trusted Source", color: "#f0c14b",
+			banner: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80",
+			link: "https://example.com/barpath", desc: "Macros, meal timing, and competition fueling.",
+			forumKey: "nutrition", order: 3,
+		},
+		{
+			name: "Clarity Recovery", slug: "clarity-recovery", tag: "Trusted Source", color: "#9bb8ff",
+			banner: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
+			link: "https://example.com/clarity", desc: "Sleep, tendons, and coming back stronger.",
+			forumKey: "recovery", order: 4,
+		},
+	}
+
+	for _, s := range stores {
+		var forum any
+		if fid, ok := forumIDs[s.forumKey]; ok && fid != "" {
+			forum = fid
+		} else {
+			forum = nil
+		}
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO trusted_stores(id, name, slug, tag_label, tag_color, banner_url, link_url, description, forum_id, sort_order, is_active)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)
+			ON CONFLICT (slug) DO NOTHING
+		`, id, s.name, s.slug, s.tag, s.color, s.banner, s.link, s.desc, forum, s.order); err != nil {
+			return err
+		}
+	}
+	log.Println("trusted stores seeded")
+	return nil
+}
+
+func ensureDemoUserTags(db *sql.DB, adminID, modID, lifterID string) error {
+	// Ensure default profile tags exist (migration also inserts these)
+	if _, err := db.Exec(`
+		INSERT INTO profile_tags (slug, label, color, sort_order) VALUES
+			('member', 'Member', '#8b948c', 10),
+			('vip', 'VIP', '#f0c14b', 20),
+			('company', 'Company', '#7dd3c0', 30),
+			('trusted', 'Trusted Source', '#d4ff3a', 40)
+		ON CONFLICT (slug) DO NOTHING
+	`); err != nil {
+		return nil // table missing — skip
+	}
+	assigns := []struct {
+		uid  string
+		tags []string
+	}{
+		{adminID, []string{"trusted", "company"}},
+		{modID, []string{"vip"}},
+		{lifterID, []string{"member", "vip"}},
+	}
+	for _, a := range assigns {
+		for _, tag := range a.tags {
+			_, _ = db.Exec(`
+				INSERT INTO user_tags(user_id, tag_slug)
+				SELECT $1, $2 WHERE EXISTS (SELECT 1 FROM profile_tags WHERE slug=$2)
+				ON CONFLICT DO NOTHING
+			`, a.uid, tag)
+		}
+	}
 	return nil
 }
 

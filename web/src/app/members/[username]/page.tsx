@@ -10,6 +10,9 @@ import type { ProfilePost, UserPublic } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { MentionInput } from "@/components/MentionInput";
 import { renderTextWithMentions } from "@/lib/mentions";
+import { RoleBadge, TagBadges } from "@/components/TagBadge";
+import { Pagination } from "@/components/Pagination";
+import { PAGE_SIZE } from "@/lib/pagination";
 
 export default function MemberProfilePage({
   params,
@@ -20,6 +23,8 @@ export default function MemberProfilePage({
   const { user, refresh } = useAuth();
   const [member, setMember] = useState<UserPublic | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsTotal, setPostsTotal] = useState(0);
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,17 +37,23 @@ export default function MemberProfilePage({
 
   const isOwn = !!user && user.username.toLowerCase() === username.toLowerCase();
 
+  async function loadPosts(page = postsPage) {
+    const p = await apiFetch<{ posts: ProfilePost[]; total?: number }>(
+      `/members/${username}/profile-posts?page=${page}&limit=${PAGE_SIZE}`,
+      { auth: false },
+    );
+    setPosts(p.posts);
+    setPostsTotal(p.total ?? p.posts.length);
+    setPostsPage(page);
+  }
+
   async function load() {
     try {
-      const [m, p] = await Promise.all([
-        apiFetch<UserPublic>(`/members/${username}`, { auth: false }),
-        apiFetch<{ posts: ProfilePost[] }>(
-          `/members/${username}/profile-posts`,
-          { auth: false },
-        ),
-      ]);
+      const m = await apiFetch<UserPublic>(`/members/${username}`, {
+        auth: false,
+      });
       setMember(m);
-      setPosts(p.posts);
+      await loadPosts(1);
       setDisplayName(m.displayName || m.username);
       setTitle(m.title || "");
       setBio(m.bio || "");
@@ -203,11 +214,10 @@ export default function MemberProfilePage({
                 @{member?.username}
                 {member?.title ? ` · ${member.title}` : ""}
               </p>
-              {member?.role && member.role !== "member" ? (
-                <p className="text-xs font-medium capitalize text-[var(--muted)]">
-                  {member.role}
-                </p>
-              ) : null}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <RoleBadge role={member?.role} />
+                <TagBadges tags={member?.tags} />
+              </div>
             </div>
             {isOwn ? (
               <button
@@ -394,6 +404,11 @@ export default function MemberProfilePage({
               : "No profile posts yet. Be the first to write on this wall."}
           </p>
         )}
+        <Pagination
+          page={postsPage}
+          total={postsTotal}
+          onPage={(p) => void loadPosts(p)}
+        />
       </section>
     </div>
   );

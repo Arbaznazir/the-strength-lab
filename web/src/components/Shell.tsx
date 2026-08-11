@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth";
 import { warmRuntimeConfig } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Avatar } from "./Avatar";
+import { NewPostButton } from "./NewPostButton";
 import { SocialLinks } from "./SocialLinks";
 
 const nav = [
@@ -95,22 +96,29 @@ export function Shell({ children }: { children: ReactNode }) {
             : "border-b border-[var(--line)] bg-[color-mix(in_oklab,var(--bg)_86%,transparent)] backdrop-blur-md",
         )}
       >
-        <div className="container-lab flex h-14 items-center justify-between gap-4 sm:h-16">
-          <div className="flex items-center gap-3">
+        <div className="container-lab flex h-14 items-center justify-between gap-2 sm:h-16 sm:gap-4">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
             <button
               type="button"
-              className="p-2 text-current/70 hover:text-current md:hidden"
+              className="-ml-1 shrink-0 p-2 text-current/70 hover:text-current md:hidden"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Menu"
             >
               {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <Link href="/" className="group flex items-baseline gap-2">
-              <span className="text-[1.05rem] font-semibold tracking-tight sm:text-xl">
+            <Link
+              href="/"
+              className="group min-w-0 shrink"
+              aria-label="The Strength Lab"
+            >
+              {/* Compact mark on phones */}
+              <span className="text-lg font-bold tracking-tight sm:hidden">
+                TS<span className="text-[var(--accent)]">L</span>
+              </span>
+              {/* Full wordmark from sm up */}
+              <span className="hidden text-[1.05rem] font-semibold tracking-tight sm:inline sm:text-xl">
                 The Strength{" "}
-                <span className={isHome ? "text-[var(--accent)]" : "text-[var(--accent)]"}>
-                  Lab
-                </span>
+                <span className="text-[var(--accent)]">Lab</span>
               </span>
             </Link>
           </div>
@@ -145,15 +153,22 @@ export function Shell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
+          <div className="flex shrink-0 items-center gap-0 sm:gap-1">
             <SocialLinks
               variant="header"
               className={clsx("mr-0.5 hidden lg:flex", isHome && "text-white/60")}
             />
+            <NewPostButton
+              compact
+              className={clsx(
+                "mr-1 hidden md:inline-flex",
+                isHome && "!bg-[var(--accent)] !text-[var(--accent-ink)]",
+              )}
+            />
             <Link
               href="/search"
               className={clsx(
-                "rounded p-2 transition-colors",
+                "rounded p-1.5 transition-colors sm:p-2",
                 isHome ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-[var(--muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)]",
               )}
               aria-label="Search"
@@ -164,7 +179,7 @@ export function Shell({ children }: { children: ReactNode }) {
               type="button"
               onClick={cycleTheme}
               className={clsx(
-                "rounded p-2 transition-colors",
+                "hidden rounded p-2 transition-colors sm:inline-flex",
                 isHome ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-[var(--muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)]",
               )}
               title={`Theme: ${theme}`}
@@ -180,9 +195,10 @@ export function Shell({ children }: { children: ReactNode }) {
                 <Link
                   href="/alerts"
                   className={clsx(
-                    "relative rounded p-2 transition-colors",
+                    "relative rounded p-1.5 transition-colors sm:p-2",
                     isHome ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-[var(--muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)]",
                   )}
+                  aria-label="Alerts"
                 >
                   <Bell className="h-4 w-4" />
                   {unreadAlerts > 0 ? <span className="badge-count">{unreadAlerts}</span> : null}
@@ -190,9 +206,10 @@ export function Shell({ children }: { children: ReactNode }) {
                 <Link
                   href="/messages"
                   className={clsx(
-                    "relative rounded p-2 transition-colors",
+                    "relative hidden rounded p-2 transition-colors sm:inline-flex",
                     isHome ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-[var(--muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)]",
                   )}
+                  aria-label="Messages"
                 >
                   <MessageSquare className="h-4 w-4" />
                   {unreadMessages > 0 ? <span className="badge-count">{unreadMessages}</span> : null}
@@ -201,8 +218,9 @@ export function Shell({ children }: { children: ReactNode }) {
                   <button
                     type="button"
                     onClick={() => setUserMenu((v) => !v)}
-                    className="flex items-center gap-2 rounded p-1"
+                    className="flex items-center gap-2 rounded p-0.5 sm:p-1"
                     aria-expanded={userMenu}
+                    aria-label="Account menu"
                   >
                     <Avatar user={user} size="sm" link={false} />
                     <span className="hidden max-w-[7rem] truncate text-sm md:inline">
@@ -267,6 +285,9 @@ export function Shell({ children }: { children: ReactNode }) {
                   {item.label}
                 </Link>
               ))}
+              <div className="px-2 py-2">
+                <NewPostButton className="w-full justify-center" />
+              </div>
               {user ? (
                 <>
                   <Link href="/messages" className="px-2 py-3 text-sm font-medium text-[var(--fg)]">
@@ -315,6 +336,17 @@ export function Shell({ children }: { children: ReactNode }) {
               >
                 Search
               </Link>
+              <button
+                type="button"
+                onClick={cycleTheme}
+                className={clsx(
+                  "flex items-center gap-2 px-2 py-3 text-left text-sm font-medium sm:hidden",
+                  isHome ? "text-white/90" : "text-[var(--fg)]",
+                )}
+              >
+                <ThemeIcon className="h-4 w-4" />
+                Theme: {theme}
+              </button>
               <div className="px-2 py-3">
                 <SocialLinks variant="footer" />
               </div>

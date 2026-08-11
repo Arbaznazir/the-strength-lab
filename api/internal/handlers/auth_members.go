@@ -168,22 +168,22 @@ func (a *API) MembersOverview(w http.ResponseWriter, r *http.Request) {
 	var total int
 	_ = a.DB.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&total)
 
-	topMessages, err := a.listUsers(`message_count DESC`, 5, "", nil)
+	topMessages, err := a.listUsers(`message_count DESC`, 5, 0, "", nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
-	topReactions, err := a.listUsers(`reaction_score DESC`, 5, "", nil)
+	topReactions, err := a.listUsers(`reaction_score DESC`, 5, 0, "", nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
-	topPoints, err := a.listUsers(`trophy_points DESC`, 5, "", nil)
+	topPoints, err := a.listUsers(`trophy_points DESC`, 5, 0, "", nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
-	newest, err := a.listUsers(`created_at DESC`, 12, "", nil)
+	newest, err := a.listUsers(`created_at DESC`, 12, 0, "", nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -207,12 +207,8 @@ func (a *API) MembersOverview(w http.ResponseWriter, r *http.Request) {
 func (a *API) ListMembers(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 100 {
-			limit = n
-		}
-	}
+	page := parsePage(r)
+	limit := parseLimit(r, DefaultPageSize, 50)
 
 	if sort == "staff" {
 		staff, err := a.listStaff()
@@ -243,7 +239,22 @@ func (a *API) ListMembers(w http.ResponseWriter, r *http.Request) {
 		args = append(args, "%"+q+"%")
 	}
 
-	list, err := a.listUsers(order, limit, where, args)
+	var total int
+	countQuery := `SELECT COUNT(*) FROM users` + where
+	if len(args) > 0 {
+		if err := a.DB.QueryRow(countQuery, args...).Scan(&total); err != nil {
+			writeError(w, http.StatusInternalServerError, "query failed")
+			return
+		}
+	} else {
+		if err := a.DB.QueryRow(countQuery).Scan(&total); err != nil {
+			writeError(w, http.StatusInternalServerError, "query failed")
+			return
+		}
+	}
+
+	pages, offset, page := paginate(total, page, limit)
+	list, err := a.listUsers(order, limit, offset, where, args)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -253,7 +264,14 @@ func (a *API) ListMembers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"members": list, "staff": staff})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"members": list,
+		"staff":   staff,
+		"page":    page,
+		"pages":   pages,
+		"total":   total,
+		"limit":   limit,
+	})
 }
 
 func (a *API) listStaff() ([]models.UserPublic, error) {
@@ -265,8 +283,8 @@ func (a *API) listStaff() ([]models.UserPublic, error) {
 	return scanUserRows(rows)
 }
 
-func (a *API) listUsers(order string, limit int, where string, args []any) ([]models.UserPublic, error) {
-	query := `SELECT ` + userSelect + ` FROM users` + where + ` ORDER BY ` + order + ` LIMIT ` + strconv.Itoa(limit)
+func (a *API) listUsers(order string, limit, offset int, where string, args []any) ([]models.UserPublic, error) {
+	query := `SELECT ` + userSelect + ` FROM users` + where + ` ORDER BY ` + order + ` LIMIT ` + strconv.Itoa(limit) + ` OFFSET ` + strconv.Itoa(offset)
 	var rows *sql.Rows
 	var err error
 	if len(args) > 0 {

@@ -10,6 +10,7 @@ import type { Attachment, Post, Thread } from "@/lib/types";
 import { PostCard } from "@/components/PostCard";
 import { ThreadModBar } from "@/components/admin/ThreadModBar";
 import { isStaff } from "@/lib/admin";
+import { PAGE_SIZE } from "@/lib/pagination";
 import { ImageAttach } from "@/components/ImageAttach";
 import { ShareModal } from "@/components/ShareModal";
 import { ShareBar } from "@/components/ShareBar";
@@ -257,7 +258,7 @@ export default function ThreadPageInner({
           <PostCard
             key={post.id}
             post={post}
-            index={(page - 1) * 20 + i}
+            index={(page - 1) * PAGE_SIZE + i}
             threadSlug={slug}
             threadTitle={thread?.title}
             canReply={Boolean(user && (!thread?.isLocked || staff))}

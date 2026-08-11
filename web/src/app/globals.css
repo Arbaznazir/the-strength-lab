@@ -271,6 +271,12 @@ a.mention:hover {
   align-items: baseline;
   gap: 0.75rem;
   margin-bottom: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cat-label > div {
+  min-width: 0;
 }
 
 .cat-label::before {
@@ -285,15 +291,20 @@ a.mention:hover {
 .forum-board {
   border-top: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line);
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .forum-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   padding: 1.1rem 0;
   border-top: 1px solid var(--line);
   transition: background 0.15s ease;
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 768px) {

@@ -8,11 +8,12 @@ import { apiFetch, getCachedApiBase } from "@/lib/api";
 import type { Category } from "@/lib/types";
 import { ForumList } from "@/components/ForumList";
 import { Sidebar } from "@/components/Sidebar";
+import { TrustedStoresBoard } from "@/components/TrustedStores";
 import { SocialLinks } from "@/components/SocialLinks";
+import { NewPostButton } from "@/components/NewPostButton";
 import { useAuth } from "@/lib/auth";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=2400&q=80";
+const HERO_IMAGE = "/images/hero-gym-tiger.jpg";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -41,6 +42,12 @@ export default function HomePage() {
     };
   }, []);
 
+  const community = categories.find((c) => c.slug === "community");
+  const leadCategory = community ?? categories[0] ?? null;
+  const tailCategories = community
+    ? categories.filter((c) => c.slug !== "community")
+    : categories.slice(1);
+
   return (
     <div>
       {/* First viewport: brand + one line + CTA + full-bleed image */}
@@ -52,7 +59,7 @@ export default function HomePage() {
             fill
             priority
             sizes="100vw"
-            className="hero-kenburns object-cover object-[center_30%] opacity-55"
+            className="hero-kenburns object-cover object-[58%_40%] opacity-60 sm:object-[52%_40%] md:object-[center_40%]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0a0c0b] via-[#0a0c0b]/78 to-[#0a0c0b]/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c0b] via-transparent to-[#0a0c0b]/40" />
@@ -91,6 +98,10 @@ export default function HomePage() {
               Enter the forums
               <ArrowDownRight className="h-4 w-4" />
             </a>
+            <NewPostButton
+              ghost
+              className="border-white/25 text-white hover:border-[var(--accent)]"
+            />
             {!user ? (
               <>
                 <Link
@@ -115,26 +126,27 @@ export default function HomePage() {
       {/* Forums */}
       <section id="forums" className="scroll-mt-20 py-12 sm:py-16">
         <div className="container-lab">
-          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
             <div>
               <p className="kicker">Boards</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                 Find your lane
               </h2>
             </div>
-            <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
-              <SocialLinks variant="footer" />
+            <div className="flex flex-wrap items-center gap-2.5 sm:justify-end sm:gap-3">
+              <SocialLinks variant="footer" className="w-full sm:w-auto" />
+              <NewPostButton compact className="!px-3 !py-2" />
               <Link
-              href="/whats-new"
-              className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
-            >
-              Latest activity →
-            </Link>
+                href="/whats-new"
+                className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+              >
+                Latest activity →
+              </Link>
             </div>
           </div>
 
           <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_13rem] md:gap-6 lg:grid-cols-[minmax(0,1fr)_16.5rem] lg:gap-12">
-            <div>
+            <div className="min-w-0 space-y-12 overflow-x-hidden">
               {loading ? (
                 <p className="text-[var(--muted)]">Loading forums…</p>
               ) : error ? (
@@ -144,7 +156,15 @@ export default function HomePage() {
                   ?
                 </div>
               ) : (
-                <ForumList categories={categories} />
+                <>
+                  {leadCategory ? (
+                    <ForumList categories={[leadCategory]} />
+                  ) : null}
+                  <TrustedStoresBoard />
+                  {tailCategories.length ? (
+                    <ForumList categories={tailCategories} />
+                  ) : null}
+                </>
               )}
             </div>
             <Sidebar />

@@ -12,5 +12,7 @@ export const adminNav: { href: string; label: string; exact?: boolean }[] = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/users", label: "Users" },
+  { href: "/admin/stores", label: "Trusted stores" },
+  { href: "/admin/tags", label: "Tags" },
   { href: "/admin/log", label: "Mod log" },
 ];

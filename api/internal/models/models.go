@@ -16,6 +16,13 @@ type UserPublic struct {
 	TrophyPoints  int        `json:"trophyPoints"`
 	LastSeenAt    *time.Time `json:"lastSeenAt,omitempty"`
 	CreatedAt     time.Time  `json:"createdAt"`
+	Tags          []UserTag  `json:"tags,omitempty"`
+}
+
+type UserTag struct {
+	Slug  string `json:"slug"`
+	Label string `json:"label"`
+	Color string `json:"color"`
 }
 
 type Category struct {

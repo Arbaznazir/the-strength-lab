@@ -11,6 +11,8 @@ import type {
   UserPublic,
 } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import { RoleBadge } from "./TagBadge";
+import { TrustedStoresSideBlock } from "./TrustedStores";
 
 type StatsPayload = {
   forum: ForumStats;
@@ -72,6 +74,8 @@ export function Sidebar() {
         )}
       </SideBlock>
 
+      <TrustedStoresSideBlock />
+
       {stats ? (
         <>
           <SideBlock title="Lab pulse">
@@ -125,9 +129,9 @@ export function Sidebar() {
                       >
                         {s.displayName}
                       </Link>
-                      <p className="text-[11px] capitalize text-[var(--staff)]">
-                        {s.role}
-                      </p>
+                      <div className="mt-0.5">
+                        <RoleBadge role={s.role} />
+                      </div>
                     </div>
                   </li>
                 ))}

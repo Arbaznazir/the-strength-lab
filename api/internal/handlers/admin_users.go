@@ -86,6 +86,10 @@ func (a *API) ListAdminUsers(w http.ResponseWriter, r *http.Request) {
 		list = append(list, u)
 	}
 
+	for i := range list {
+		list[i].Tags = a.loadUserTags(list[i].ID)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"users": list,
 		"total": total,

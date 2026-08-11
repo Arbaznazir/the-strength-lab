@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -133,12 +134,22 @@ const userSelect = `id::text, username, COALESCE(NULLIF(display_name,''), userna
 
 func (a *API) getUserByID(id string) (models.UserPublic, error) {
 	row := a.DB.QueryRow(`SELECT `+userSelect+` FROM users WHERE id=$1`, id)
-	return scanUser(row)
+	u, err := scanUser(row)
+	if err != nil {
+		return u, err
+	}
+	a.attachUserTags(&u)
+	return u, nil
 }
 
 func (a *API) getUserByUsername(username string) (models.UserPublic, error) {
 	row := a.DB.QueryRow(`SELECT `+userSelect+` FROM users WHERE lower(username)=lower($1)`, username)
-	return scanUser(row)
+	u, err := scanUser(row)
+	if err != nil {
+		return u, err
+	}
+	a.attachUserTags(&u)
+	return u, nil
 }
 
 func validUsername(s string) bool {
@@ -182,4 +193,45 @@ func nullTimePtr(nt sql.NullTime) *time.Time {
 
 func uuidOrNew() string {
 	return uuid.NewString()
+}
+
+// DefaultPageSize is the standard list page size across forum threads, posts, members, etc.
+const DefaultPageSize = 10
+
+func parsePage(r *http.Request) int {
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil && n > 0 {
+			page = n
+		}
+	}
+	return page
+}
+
+func parseLimit(r *http.Request, fallback, max int) int {
+	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 && n <= max {
+		return n
+	}
+	return fallback
+}
+
+func paginate(total, page, perPage int) (pages, offset, clampedPage int) {
+	if perPage <= 0 {
+		perPage = DefaultPageSize
+	}
+	pages = total / perPage
+	if total%perPage != 0 {
+		pages++
+	}
+	if pages == 0 {
+		pages = 1
+	}
+	if page > pages {
+		page = pages
+	}
+	if page < 1 {
+		page = 1
+	}
+	offset = (page - 1) * perPage
+	return pages, offset, page
 }

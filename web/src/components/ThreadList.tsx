@@ -6,6 +6,7 @@ import { ChevronDown, Lock, Pin } from "lucide-react";
 import clsx from "clsx";
 import type { Thread } from "@/lib/types";
 import { absoluteDate, formatCount } from "@/lib/format";
+import { PAGE_SIZE } from "@/lib/pagination";
 import { Avatar } from "./Avatar";
 
 export type ThreadSort =
@@ -193,7 +194,7 @@ function ThreadRow({
   const [previewOpen, setPreviewOpen] = useState(false);
   const tipId = useId();
   const last = thread.lastPoster ?? thread.author;
-  const pagesHint = Math.max(1, Math.ceil((thread.replyCount + 1) / 20));
+  const pagesHint = Math.max(1, Math.ceil((thread.replyCount + 1) / PAGE_SIZE));
 
   function handleTitleClick(e: React.MouseEvent) {
     if (!thread.preview) return;

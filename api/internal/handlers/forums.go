@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -139,17 +138,13 @@ func (a *API) GetForum(w http.ResponseWriter, r *http.Request) {
 		where += ` AND t.is_pinned=true`
 	}
 
-	page := 1
-	if p := r.URL.Query().Get("page"); p != "" {
-		if n, err := strconv.Atoi(p); err == nil && n > 0 {
-			page = n
-		}
-	}
-	perPage := 25
-	offset := (page - 1) * perPage
+	page := parsePage(r)
+	perPage := DefaultPageSize
 
 	var total int
 	_ = a.DB.QueryRow(`SELECT COUNT(*) FROM threads t WHERE `+where, f.ID).Scan(&total)
+
+	pages, offset, page := paginate(total, page, perPage)
 
 	rows, err := a.DB.Query(`
 		SELECT t.id::text, t.forum_id::text, t.title, t.slug, t.is_pinned, t.is_locked, t.is_featured,
@@ -185,14 +180,6 @@ func (a *API) GetForum(w http.ResponseWriter, r *http.Request) {
 		th.ForumSlug = f.Slug
 		th.ForumName = f.Name
 		threads = append(threads, th)
-	}
-
-	pages := total / perPage
-	if total%perPage != 0 {
-		pages++
-	}
-	if pages == 0 {
-		pages = 1
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -373,7 +360,6 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 		userID = claims.UserID
 	}
 
-	perPage := 20
 	var totalPosts int
 	_ = a.DB.QueryRow(`SELECT COUNT(*) FROM posts WHERE thread_id=$1`, t.ID).Scan(&totalPosts)
 
@@ -387,25 +373,14 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 			)
 		`, t.ID, highlight).Scan(&pos)
 		if err == nil && pos > 0 {
-			page = (pos-1)/perPage + 1
+			page = (pos-1)/DefaultPageSize + 1
 		}
-	} else if p := r.URL.Query().Get("page"); p != "" {
-		if n, err := strconv.Atoi(p); err == nil && n > 0 {
-			page = n
-		}
+	} else {
+		page = parsePage(r)
 	}
 
-	pages := totalPosts / perPage
-	if totalPosts%perPage != 0 {
-		pages++
-	}
-	if pages == 0 {
-		pages = 1
-	}
-	if page > pages {
-		page = pages
-	}
-	offset := (page - 1) * perPage
+	pages, offset, page := paginate(totalPosts, page, DefaultPageSize)
+	perPage := DefaultPageSize
 
 	watched := a.threadWatchStatus(userID, t.ID)
 
@@ -448,6 +423,10 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 				posts[i].Attachments = list
 			}
 		}
+	}
+	a.attachUserTags(&t.Author)
+	for i := range posts {
+		a.attachUserTags(&posts[i].Author)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"thread":     t,

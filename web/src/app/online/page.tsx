@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import type { UserPublic } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/TagBadge";
 
 export default function OnlinePage() {
   const [members, setMembers] = useState<UserPublic[]>([]);
@@ -58,9 +59,12 @@ export default function OnlinePage() {
                 </span>
                 <div>
                   <p className="font-medium">{m.displayName}</p>
-                  <p className="kicker !text-[0.62rem] capitalize">
-                    {m.title || m.role}
-                  </p>
+                  {m.title ? (
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">{m.title}</p>
+                  ) : null}
+                  <div className="mt-1">
+                    <RoleBadge role={m.role} />
+                  </div>
                 </div>
               </Link>
             </li>
