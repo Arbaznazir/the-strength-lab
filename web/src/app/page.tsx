@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowDownRight } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getCachedApiBase } from "@/lib/api";
 import type { Category } from "@/lib/types";
 import { ForumList } from "@/components/ForumList";
 import { Sidebar } from "@/components/Sidebar";
@@ -140,9 +140,7 @@ export default function HomePage() {
               ) : error ? (
                 <div className="border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-4 text-sm text-[var(--danger)]">
                   {error}. Is the API running at{" "}
-                  <code className="text-[var(--accent)]">
-                    {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}
-                  </code>
+                  <code className="text-[var(--accent)]">{getCachedApiBase()}</code>
                   ?
                 </div>
               ) : (

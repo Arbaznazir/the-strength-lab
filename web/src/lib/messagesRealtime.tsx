@@ -64,42 +64,49 @@ export function MessagesRealtimeProvider({ children }: { children: ReactNode }) 
 
     function connect() {
       if (closed) return;
-      ws = new WebSocket(messagesWsUrl(token!));
-      wsRef.current = ws;
+      void messagesWsUrl(token!)
+        .then((url) => {
+          if (closed) return;
+          ws = new WebSocket(url);
+          wsRef.current = ws;
 
-      ws.onopen = () => {
-        if (!closed) setConnected(true);
-      };
-
-      ws.onclose = () => {
-        setConnected(false);
-        wsRef.current = null;
-        if (!closed) {
-          retryTimer = setTimeout(connect, 3000);
-        }
-      };
-
-      ws.onmessage = (ev) => {
-        try {
-          const data = JSON.parse(ev.data as string) as {
-            type?: string;
+          ws.onopen = () => {
+            if (!closed) setConnected(true);
           };
-          if (data.type === "dm") {
-            const payload = data as DmWsPayload;
-            if (!payload.conversationId || !payload.message) return;
-            void refreshRef.current();
-            dmSubsRef.current.forEach((fn) => fn(payload));
-            return;
-          }
-          if (data.type === "typing") {
-            const payload = data as TypingWsPayload;
-            if (!payload.conversationId || !payload.userId) return;
-            typingSubsRef.current.forEach((fn) => fn(payload));
-          }
-        } catch {
-          /* ignore malformed payloads */
-        }
-      };
+
+          ws.onclose = () => {
+            setConnected(false);
+            wsRef.current = null;
+            if (!closed) {
+              retryTimer = setTimeout(connect, 3000);
+            }
+          };
+
+          ws.onmessage = (ev) => {
+            try {
+              const data = JSON.parse(ev.data as string) as {
+                type?: string;
+              };
+              if (data.type === "dm") {
+                const payload = data as DmWsPayload;
+                if (!payload.conversationId || !payload.message) return;
+                void refreshRef.current();
+                dmSubsRef.current.forEach((fn) => fn(payload));
+                return;
+              }
+              if (data.type === "typing") {
+                const payload = data as TypingWsPayload;
+                if (!payload.conversationId || !payload.userId) return;
+                typingSubsRef.current.forEach((fn) => fn(payload));
+              }
+            } catch {
+              /* ignore malformed payloads */
+            }
+          };
+        })
+        .catch(() => {
+          if (!closed) retryTimer = setTimeout(connect, 3000);
+        });
     }
 
     connect();

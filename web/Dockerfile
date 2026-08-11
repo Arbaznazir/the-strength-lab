@@ -25,6 +25,8 @@ ARG NEXT_PUBLIC_WS_URL=ws://localhost:8080
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
+# Optional runtime env on the runner (Northflank → Environment): API_URL, WS_URL
+
 RUN npm run build
 
 # ---- runtime ----

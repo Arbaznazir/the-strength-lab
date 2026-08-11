@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 const API =
+  process.env.API_URL?.replace(/\/$/, "") ||
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8080";
 

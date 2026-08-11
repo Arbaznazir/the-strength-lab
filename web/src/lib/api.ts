@@ -1,8 +1,79 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8080";
+const LOCAL_API = "http://localhost:8080";
+const LOCAL_WS = "ws://localhost:8080";
 
-export const WS_BASE =
-  process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, "") || "ws://localhost:8080";
+type RuntimeConfig = { apiUrl: string; wsUrl: string };
+
+let cached: RuntimeConfig | null = null;
+let inflight: Promise<RuntimeConfig> | null = null;
+
+function trim(url?: string) {
+  return url?.replace(/\/$/, "") ?? "";
+}
+
+function bakedApiUrl() {
+  return trim(process.env.NEXT_PUBLIC_API_URL) || LOCAL_API;
+}
+
+function bakedWsUrl() {
+  return trim(process.env.NEXT_PUBLIC_WS_URL) || LOCAL_WS;
+}
+
+function serverApiUrl() {
+  return trim(process.env.API_URL) || bakedApiUrl();
+}
+
+function serverWsUrl() {
+  return trim(process.env.WS_URL) || bakedWsUrl();
+}
+
+function clientNeedsRuntimeConfig() {
+  if (typeof window === "undefined") return false;
+  return bakedApiUrl() === LOCAL_API || bakedWsUrl() === LOCAL_WS;
+}
+
+async function resolveRuntimeConfig(): Promise<RuntimeConfig> {
+  if (cached) return cached;
+
+  if (typeof window === "undefined") {
+    cached = { apiUrl: serverApiUrl(), wsUrl: serverWsUrl() };
+    return cached;
+  }
+
+  if (!clientNeedsRuntimeConfig()) {
+    cached = { apiUrl: bakedApiUrl(), wsUrl: bakedWsUrl() };
+    return cached;
+  }
+
+  if (!inflight) {
+    inflight = fetch("/api/runtime-config", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("runtime config unavailable");
+        return (await res.json()) as RuntimeConfig;
+      })
+      .then((cfg) => {
+        cached = {
+          apiUrl: trim(cfg.apiUrl) || LOCAL_API,
+          wsUrl: trim(cfg.wsUrl) || LOCAL_WS,
+        };
+        return cached;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+  }
+
+  return inflight;
+}
+
+/** Preload API/WS URLs on the client (e.g. from Shell on mount). */
+export function warmRuntimeConfig() {
+  if (typeof window === "undefined") return Promise.resolve();
+  return resolveRuntimeConfig().then(() => undefined);
+}
+
+export function getCachedApiBase() {
+  return cached?.apiUrl ?? bakedApiUrl();
+}
 
 export const TOKEN_KEY = "tsl_token";
 
@@ -38,6 +109,7 @@ export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {},
 ): Promise<T> {
+  const apiBase = (await resolveRuntimeConfig()).apiUrl;
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -57,7 +129,7 @@ export async function apiFetch<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}/api/v1${path}`, {
+  const res = await fetch(`${apiBase}/api/v1${path}`, {
     method: options.method || (options.body !== undefined ? "POST" : "GET"),
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
@@ -79,18 +151,21 @@ export async function apiFetch<T>(
   return (await res.json()) as T;
 }
 
-export function chatWsUrl(token: string): string {
-  return `${WS_BASE}/api/v1/ws/chat?token=${encodeURIComponent(token)}`;
+export async function chatWsUrl(token: string): Promise<string> {
+  const wsBase = (await resolveRuntimeConfig()).wsUrl;
+  return `${wsBase}/api/v1/ws/chat?token=${encodeURIComponent(token)}`;
 }
 
-export function messagesWsUrl(token: string): string {
-  return `${WS_BASE}/api/v1/ws/messages?token=${encodeURIComponent(token)}`;
+export async function messagesWsUrl(token: string): Promise<string> {
+  const wsBase = (await resolveRuntimeConfig()).wsUrl;
+  return `${wsBase}/api/v1/ws/messages?token=${encodeURIComponent(token)}`;
 }
 
 export function mediaURL(path?: string | null): string {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+  const base = getCachedApiBase();
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 export async function apiUpload(
@@ -104,6 +179,7 @@ export async function apiUpload(
   sizeBytes: number;
   user?: import("./types").UserPublic;
 }> {
+  const apiBase = (await resolveRuntimeConfig()).apiUrl;
   const token = getToken();
   if (!token) throw new ApiRequestError(401, "unauthorized");
 
@@ -111,7 +187,7 @@ export async function apiUpload(
   form.append("file", file);
   if (purpose) form.append("purpose", purpose);
 
-  const res = await fetch(`${API_BASE}/api/v1/uploads`, {
+  const res = await fetch(`${apiBase}/api/v1/uploads`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -132,4 +208,3 @@ export async function apiUpload(
   }
   return res.json();
 }
-

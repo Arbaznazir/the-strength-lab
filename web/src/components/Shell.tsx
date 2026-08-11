@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { warmRuntimeConfig } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Avatar } from "./Avatar";
 import { SocialLinks } from "./SocialLinks";
@@ -39,6 +40,10 @@ export function Shell({ children }: { children: ReactNode }) {
     setMenuOpen(false);
     setUserMenu(false);
   }, [pathname]);
+
+  useEffect(() => {
+    void warmRuntimeConfig();
+  }, []);
 
   useEffect(() => {
     if (!userMenu) return;

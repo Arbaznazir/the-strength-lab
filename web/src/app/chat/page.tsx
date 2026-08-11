@@ -77,33 +77,45 @@ export default function ChatPage() {
     let poll: ReturnType<typeof setInterval> | null = null;
     let closed = false;
 
-    try {
-      ws = new WebSocket(chatWsUrl(token));
-      ws.onopen = () => {
-        if (!closed) setLive(true);
-      };
-      ws.onclose = () => {
-        if (!closed) setLive(false);
-      };
-      ws.onmessage = (ev) => {
-        try {
-          const data = JSON.parse(ev.data as string) as {
-            type?: string;
-            message?: ChatMessage;
-          };
-          if (data.type === "chat" && data.message) {
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === data.message!.id)) return prev;
-              return [...prev, data.message!];
-            });
+    function connect() {
+      if (closed) return;
+      void chatWsUrl(token!)
+        .then((url) => {
+          if (closed) return;
+          try {
+            ws = new WebSocket(url);
+            ws.onopen = () => {
+              if (!closed) setLive(true);
+            };
+            ws.onclose = () => {
+              if (!closed) setLive(false);
+            };
+            ws.onmessage = (ev) => {
+              try {
+                const data = JSON.parse(ev.data as string) as {
+                  type?: string;
+                  message?: ChatMessage;
+                };
+                if (data.type === "chat" && data.message) {
+                  setMessages((prev) => {
+                    if (prev.some((m) => m.id === data.message!.id)) return prev;
+                    return [...prev, data.message!];
+                  });
+                }
+              } catch {
+                /* ignore */
+              }
+            };
+          } catch {
+            /* fall back to polling */
           }
-        } catch {
-          /* ignore */
-        }
-      };
-    } catch {
-      /* fall back to polling */
+        })
+        .catch(() => {
+          /* fall back to polling */
+        });
     }
+
+    connect();
 
     poll = setInterval(() => {
       if (!live) void load();
