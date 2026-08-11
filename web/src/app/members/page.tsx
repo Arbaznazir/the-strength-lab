@@ -203,7 +203,7 @@ function MembersInner() {
             </>
           ) : view === "staff" ? (
             <StaffGrid staff={members.length ? members : staff} />
-          ) : (
+          ) : view === "messages" || view === "reactions" || view === "points" ? (
             <section className="space-y-4">
               <h2 className="text-base font-semibold">{viewTitles[view]}</h2>
               <ul className="divide-y divide-[var(--line)] overflow-hidden border border-[var(--line)] bg-[var(--bg-elevated)]">
@@ -218,7 +218,7 @@ function MembersInner() {
                 ))}
               </ul>
             </section>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
