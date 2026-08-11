@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { safeNextPath } from "@/lib/api";
 
 const demos = ["coach", "spotter", "lifter"];
 const BG =
@@ -30,7 +31,7 @@ function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/";
+  const nextPath = safeNextPath(searchParams.get("next"));
   const [loginName, setLoginName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +43,7 @@ function LoginForm() {
     setError("");
     try {
       await login(loginName, password);
-      router.push(nextPath.startsWith("/") ? nextPath : "/");
+      router.push(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

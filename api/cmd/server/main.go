@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -40,26 +41,39 @@ func main() {
 	}
 
 	api := &handlers.API{
-		DB:        sqlDB,
-		JWTSecret: cfg.JWTSecret,
-		JWTTTL:    cfg.JWTTTLHours,
-		Hub:       realtime.NewHub(),
-		Typing:    realtime.NewTypingTracker(),
-		Guests:    handlers.NewGuestTracker(),
-		UploadDir: envOr("UPLOAD_DIR", "uploads"),
+		DB:             sqlDB,
+		JWTSecret:      cfg.JWTSecret,
+		JWTTTL:         cfg.JWTTTLHours,
+		Hub:            realtime.NewHub(),
+		Typing:         realtime.NewTypingTracker(),
+		Guests:         handlers.NewGuestTracker(),
+		UploadDir:      envOr("UPLOAD_DIR", "uploads"),
+		CookieSecure:   cfg.CookieSecure,
+		CookieSameSite: cfg.CookieSameSite,
+		AllowedOrigins: cfg.CORSOrigins,
 	}
 	_ = os.MkdirAll(api.UploadDir, 0o755)
 
 	api.LoadStaffRoles()
 	middleware.SetStaffChecker(api.IsStaffRole)
+	middleware.SetSessionChecker(middleware.NewSessionCheckerFromDB(sqlDB))
+
+	globalRL := middleware.NewRateLimiter(180, time.Minute)
+	authRL := middleware.NewRateLimiter(12, time.Minute)
+	writeRL := middleware.NewRateLimiter(60, time.Minute)
+	searchRL := middleware.NewRateLimiter(45, time.Minute)
+	uploadRL := middleware.NewRateLimiter(20, time.Minute)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.MaxBody(2 << 20))
+	r.Use(middleware.RateLimit(globalRL))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{cfg.CORSOrigin, "http://127.0.0.1:3000"},
+		AllowedOrigins:   cfg.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -67,7 +81,6 @@ func main() {
 	}))
 	r.Use(middleware.AuthOptional(cfg.JWTSecret))
 
-	// Uploaded images (avatars, post attachments)
 	fileServer := http.StripPrefix("/uploads/", http.FileServer(http.Dir(api.UploadDir)))
 	r.Handle("/uploads/*", fileServer)
 
@@ -82,15 +95,16 @@ func main() {
 			_, _ = w.Write([]byte(`{"name":"The Strength Lab","version":"0.1.0"}`))
 		})
 
-		r.Post("/auth/register", api.Register)
-		r.Post("/auth/login", api.Login)
+		r.With(middleware.RateLimit(authRL)).Post("/auth/register", api.Register)
+		r.With(middleware.RateLimit(authRL)).Post("/auth/login", api.Login)
+		r.Post("/auth/logout", api.Logout)
 
 		r.Get("/forums", api.ListForumTree)
 		r.Get("/forums/{slug}", api.GetForum)
 		r.Get("/threads/{slug}", api.GetThread)
 		r.Get("/whats-new", api.WhatsNew)
 		r.Get("/trending", api.Trending)
-		r.Get("/search", api.Search)
+		r.With(middleware.RateLimit(searchRL)).Get("/search", api.Search)
 		r.Get("/stats", api.Stats)
 		r.Get("/online", api.Online)
 		r.Get("/members/overview", api.MembersOverview)
@@ -102,24 +116,24 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthRequired(cfg.JWTSecret))
 			r.Get("/me", api.Me)
-			r.Patch("/me", api.UpdateProfile)
-			r.Post("/uploads", api.Upload)
-			r.Post("/forums/{slug}/threads", api.CreateThread)
-			r.Post("/threads/{slug}/replies", api.ReplyThread)
+			r.With(middleware.RateLimit(writeRL)).Patch("/me", api.UpdateProfile)
+			r.With(middleware.RateLimit(uploadRL)).Post("/uploads", api.Upload)
+			r.With(middleware.RateLimit(writeRL)).Post("/forums/{slug}/threads", api.CreateThread)
+			r.With(middleware.RateLimit(writeRL)).Post("/threads/{slug}/replies", api.ReplyThread)
 			r.Post("/threads/{slug}/watch", api.WatchThread)
 			r.Delete("/threads/{slug}/watch", api.UnwatchThread)
-			r.Post("/posts/{id}/reactions", api.ReactPost)
+			r.With(middleware.RateLimit(writeRL)).Post("/posts/{id}/reactions", api.ReactPost)
 			r.Get("/alerts", api.ListAlerts)
 			r.Post("/alerts/read", api.MarkAlertsRead)
-			r.Post("/members/{username}/profile-posts", api.CreateProfilePost)
+			r.With(middleware.RateLimit(writeRL)).Post("/members/{username}/profile-posts", api.CreateProfilePost)
 			r.Get("/messages", api.ListConversations)
-			r.Post("/messages", api.CreateConversation)
+			r.With(middleware.RateLimit(writeRL)).Post("/messages", api.CreateConversation)
 			r.Get("/messages/{id}", api.GetConversation)
-			r.Post("/messages/{id}", api.ReplyConversation)
-			r.Post("/chat", api.PostChat)
+			r.With(middleware.RateLimit(writeRL)).Post("/messages/{id}", api.ReplyConversation)
+			r.With(middleware.RateLimit(writeRL)).Post("/chat", api.PostChat)
 			r.Get("/ws/chat", api.ChatWS)
 			r.Get("/ws/messages", api.MessagesWS)
-			r.Post("/reports", api.Report)
+			r.With(middleware.RateLimit(writeRL)).Post("/reports", api.Report)
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.StaffRequired)
 				r.Get("/admin/dashboard", api.AdminDashboard)
@@ -137,7 +151,7 @@ func main() {
 		})
 	})
 
-	log.Printf("The Strength Lab API on %s", cfg.Addr)
+	log.Printf("The Strength Lab API on %s (env=%s, cors=%v)", cfg.Addr, cfg.AppEnv, cfg.CORSOrigins)
 	if err := http.ListenAndServe(cfg.Addr, r); err != nil {
 		log.Fatal(err)
 	}

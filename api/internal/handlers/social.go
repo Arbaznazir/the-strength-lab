@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/thestrengthlab/api/internal/auth"
+	"github.com/thestrengthlab/api/internal/middleware"
 	"github.com/thestrengthlab/api/internal/models"
 	"github.com/thestrengthlab/api/internal/realtime"
 )
@@ -532,7 +533,14 @@ func (a *API) PostChat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, msg)
 }
 
-var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+func (a *API) wsUpgrader() *websocket.Upgrader {
+	allowed := a.AllowedOrigins
+	return &websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return middleware.OriginAllowed(r, allowed)
+		},
+	}
+}
 
 func (a *API) ChatWS(w http.ResponseWriter, r *http.Request) {
 	claims := a.requireUser(r)
@@ -549,7 +557,7 @@ func (a *API) MessagesWS(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := a.wsUpgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
@@ -596,7 +604,7 @@ func (a *API) MessagesWS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) serveUserWS(w http.ResponseWriter, r *http.Request, claims *auth.Claims) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := a.wsUpgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}

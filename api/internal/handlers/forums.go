@@ -275,8 +275,12 @@ func (a *API) CreateThread(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Title = strings.TrimSpace(req.Title)
 	req.Body = strings.TrimSpace(req.Body)
-	if len(req.Title) < 3 || len(req.Body) < 2 {
-		writeError(w, http.StatusBadRequest, "title and body required")
+	if len(req.Title) < 3 || len(req.Title) > 200 {
+		writeError(w, http.StatusBadRequest, "title must be 3–200 characters")
+		return
+	}
+	if len(req.Body) < 2 || len(req.Body) > 20000 {
+		writeError(w, http.StatusBadRequest, "body must be 2–20000 characters")
 		return
 	}
 
@@ -470,10 +474,16 @@ func (a *API) ReplyThread(w http.ResponseWriter, r *http.Request) {
 		AttachmentIDs []string `json:"attachmentIds"`
 		QuotedPostID  string   `json:"quotedPostId"`
 	}
-	if err := decodeJSON(r, &req); err != nil || strings.TrimSpace(req.Body) == "" {
+	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "body required")
 		return
 	}
+	body, ok := clampBody(req.Body, 20000)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "body must be 1–20000 characters")
+		return
+	}
+	req.Body = body
 	var threadID, forumID, authorID string
 	var locked bool
 	var title string

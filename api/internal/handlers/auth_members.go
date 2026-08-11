@@ -54,6 +54,7 @@ func (a *API) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, _ := a.getUserByID(id.String())
+	a.setAuthCookie(w, token)
 	writeJSON(w, http.StatusCreated, map[string]any{"token": token, "user": user})
 }
 
@@ -86,7 +87,13 @@ func (a *API) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	touchLastSeen(a.DB, id.String())
 	user, _ := a.getUserByID(id.String())
+	a.setAuthCookie(w, token)
 	writeJSON(w, http.StatusOK, map[string]any{"token": token, "user": user})
+}
+
+func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
+	a.clearAuthCookie(w)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (a *API) Me(w http.ResponseWriter, r *http.Request) {
@@ -128,10 +135,16 @@ func (a *API) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
+	avatar := sanitizeMediaURL(req.AvatarURL)
+	banner := sanitizeMediaURL(req.BannerURL)
+	bio := strings.TrimSpace(req.Bio)
+	if len(bio) > 2000 {
+		bio = bio[:2000]
+	}
 	_, err := a.DB.Exec(
 		`UPDATE users SET display_name=$2, title=$3, bio=$4, avatar_url=$5, banner_url=$6, updated_at=NOW() WHERE id=$1`,
 		claims.UserID, strings.TrimSpace(req.DisplayName), strings.TrimSpace(req.Title),
-		strings.TrimSpace(req.Bio), strings.TrimSpace(req.AvatarURL), strings.TrimSpace(req.BannerURL),
+		bio, avatar, banner,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "update failed")

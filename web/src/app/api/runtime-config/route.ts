@@ -7,6 +7,21 @@ function trim(url?: string) {
   return url?.replace(/\/$/, "") ?? "";
 }
 
+function isAllowedApiUrl(url: string) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    if (u.username || u.password) return false;
+    const host = u.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1") return true;
+    if (host.endsWith(".code.run")) return true;
+    // Allow explicitly configured production hosts only via env (already trusted)
+    return Boolean(process.env.API_URL || process.env.NEXT_PUBLIC_API_URL);
+  } catch {
+    return false;
+  }
+}
+
 /** Northflank: p01--the-strength-lab-frontend--<id>.code.run → backend sibling URL */
 function inferBackendFromHost(host: string): string | null {
   const h = host.split(":")[0]?.toLowerCase() ?? "";
@@ -24,16 +39,30 @@ function inferWsFromApi(apiUrl: string) {
 export async function GET(request: Request) {
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
 
-  const apiUrl =
+  let apiUrl =
     trim(process.env.API_URL) ||
     trim(process.env.NEXT_PUBLIC_API_URL) ||
-    inferBackendFromHost(host) ||
-    LOCAL_API;
+    "";
 
-  const wsUrl =
+  // Only infer from host when env is unset (local/dev convenience)
+  if (!apiUrl) {
+    apiUrl = inferBackendFromHost(host) || LOCAL_API;
+  }
+
+  if (!isAllowedApiUrl(apiUrl)) {
+    return NextResponse.json({ error: "invalid api url config" }, { status: 500 });
+  }
+
+  let wsUrl =
     trim(process.env.WS_URL) ||
     trim(process.env.NEXT_PUBLIC_WS_URL) ||
     (apiUrl !== LOCAL_API ? inferWsFromApi(apiUrl) : LOCAL_WS);
 
-  return NextResponse.json({ apiUrl, wsUrl });
+  if (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://")) {
+    return NextResponse.json({ error: "invalid ws url config" }, { status: 500 });
+  }
+
+  const res = NextResponse.json({ apiUrl, wsUrl });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }

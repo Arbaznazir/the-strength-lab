@@ -5,6 +5,8 @@ type RuntimeConfig = { apiUrl: string; wsUrl: string };
 
 let cached: RuntimeConfig | null = null;
 let inflight: Promise<RuntimeConfig> | null = null;
+/** In-memory only — not localStorage (XSS hardening). Cookie is primary. */
+let memoryToken: string | null = null;
 
 function trim(url?: string) {
   return url?.replace(/\/$/, "") ?? "";
@@ -78,14 +80,40 @@ export function getCachedApiBase() {
 export const TOKEN_KEY = "tsl_token";
 
 export function getToken(): string | null {
+  if (memoryToken) return memoryToken;
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  // One-time migration off legacy localStorage
+  try {
+    const legacy = localStorage.getItem(TOKEN_KEY);
+    if (legacy) {
+      memoryToken = legacy;
+      localStorage.removeItem(TOKEN_KEY);
+      return legacy;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 export function setToken(token: string | null) {
+  memoryToken = token;
   if (typeof window === "undefined") return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearToken() {
+  memoryToken = null;
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export class ApiRequestError extends Error {
@@ -134,6 +162,7 @@ export async function apiFetch<T>(
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     cache: "no-store",
+    credentials: "include",
   });
 
   if (!res.ok) {
@@ -151,14 +180,18 @@ export async function apiFetch<T>(
   return (await res.json()) as T;
 }
 
-export async function chatWsUrl(token: string): Promise<string> {
+export async function chatWsUrl(token?: string | null): Promise<string> {
   const wsBase = (await resolveRuntimeConfig()).wsUrl;
-  return `${wsBase}/api/v1/ws/chat?token=${encodeURIComponent(token)}`;
+  const t = token || getToken();
+  if (t) return `${wsBase}/api/v1/ws/chat?token=${encodeURIComponent(t)}`;
+  return `${wsBase}/api/v1/ws/chat`;
 }
 
-export async function messagesWsUrl(token: string): Promise<string> {
+export async function messagesWsUrl(token?: string | null): Promise<string> {
   const wsBase = (await resolveRuntimeConfig()).wsUrl;
-  return `${wsBase}/api/v1/ws/messages?token=${encodeURIComponent(token)}`;
+  const t = token || getToken();
+  if (t) return `${wsBase}/api/v1/ws/messages?token=${encodeURIComponent(t)}`;
+  return `${wsBase}/api/v1/ws/messages`;
 }
 
 export function mediaURL(path?: string | null): string {
@@ -166,6 +199,17 @@ export function mediaURL(path?: string | null): string {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   const base = getCachedApiBase();
   return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+/** Safe in-app redirect path (blocks open redirects like //evil.com). */
+export function safeNextPath(raw: string | null | undefined, fallback = "/"): string {
+  if (!raw) return fallback;
+  const path = raw.trim();
+  if (!path.startsWith("/")) return fallback;
+  if (path.startsWith("//") || path.startsWith("/\\")) return fallback;
+  if (path.includes("://")) return fallback;
+  if (/[\x00-\x1f]/.test(path)) return fallback;
+  return path;
 }
 
 export async function apiUpload(
@@ -181,19 +225,21 @@ export async function apiUpload(
 }> {
   const apiBase = (await resolveRuntimeConfig()).apiUrl;
   const token = getToken();
-  if (!token) throw new ApiRequestError(401, "unauthorized");
 
   const form = new FormData();
   form.append("file", file);
   if (purpose) form.append("purpose", purpose);
 
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(`${apiBase}/api/v1/uploads`, {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     body: form,
+    credentials: "include",
   });
 
   if (!res.ok) {

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import clsx from "clsx";
 import { useAuth } from "@/lib/auth";
-import { getToken } from "@/lib/api";
+import { getToken, safeNextPath } from "@/lib/api";
 import { adminNav, isStaff } from "@/lib/admin";
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -18,7 +18,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (pendingAuth) return;
     if (!user) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      router.replace(`/login?next=${encodeURIComponent(safeNextPath(pathname, "/admin"))}`);
     }
   }, [user, pendingAuth, pathname, router]);
 
@@ -53,7 +53,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             Back to site
           </Link>
           <Link
-            href={`/login?next=${encodeURIComponent(pathname)}`}
+            href={`/login?next=${encodeURIComponent(safeNextPath(pathname, "/admin"))}`}
             className="btn-primary"
           >
             Sign in as staff

@@ -17,13 +17,16 @@ import (
 )
 
 type API struct {
-	DB        *sql.DB
-	JWTSecret string
-	JWTTTL    int
-	Hub       *realtime.Hub
-	Typing    *realtime.TypingTracker
-	Guests    *GuestTracker
-	UploadDir string
+	DB             *sql.DB
+	JWTSecret      string
+	JWTTTL         int
+	Hub            *realtime.Hub
+	Typing         *realtime.TypingTracker
+	Guests         *GuestTracker
+	UploadDir      string
+	CookieSecure   bool
+	CookieSameSite http.SameSite
+	AllowedOrigins []string
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -36,11 +39,53 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+const maxJSONBody = 1 << 20 // 1MB
+
 func decodeJSON(r *http.Request, dst any) error {
 	defer r.Body.Close()
+	r.Body = http.MaxBytesReader(nil, r.Body, maxJSONBody)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	return dec.Decode(dst)
+}
+
+func (a *API) cookieOpts() middleware.CookieOpts {
+	return middleware.CookieOpts{
+		Secure:   a.CookieSecure,
+		SameSite: a.CookieSameSite,
+		TTL:      time.Duration(a.JWTTTL) * time.Hour,
+	}
+}
+
+func (a *API) setAuthCookie(w http.ResponseWriter, token string) {
+	middleware.SetSessionCookie(w, token, a.cookieOpts())
+}
+
+func (a *API) clearAuthCookie(w http.ResponseWriter) {
+	middleware.ClearSessionCookie(w, a.cookieOpts())
+}
+
+// sanitizeMediaURL only allows same-origin upload paths (blocks arbitrary remote URLs).
+func sanitizeMediaURL(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	if strings.HasPrefix(s, "/uploads/") && !strings.Contains(s, "..") && !strings.Contains(s, "\\") {
+		return s
+	}
+	return ""
+}
+
+func clampBody(s string, max int) (string, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", false
+	}
+	if len(s) > max {
+		return "", false
+	}
+	return s, true
 }
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)

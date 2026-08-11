@@ -50,20 +50,25 @@ func (a *API) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	mime := header.Header.Get("Content-Type")
+	mime := ""
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	_, _ = file.Seek(0, io.SeekStart)
+	if n > 0 {
+		mime = http.DetectContentType(buf[:n])
+	}
 	ext, ok := allowedImageMIME[mime]
 	if !ok {
-		// sniff
-		buf := make([]byte, 512)
-		n, _ := file.Read(buf)
-		_, _ = file.Seek(0, io.SeekStart)
-		mime = http.DetectContentType(buf[:n])
-		ext, ok = allowedImageMIME[mime]
+		// fallback to declared type only if sniff was inconclusive
+		declared := header.Header.Get("Content-Type")
+		ext, ok = allowedImageMIME[declared]
 		if !ok {
 			writeError(w, http.StatusBadRequest, "only jpeg, png, gif, webp allowed")
 			return
 		}
+		mime = declared
 	}
+	_ = mime
 
 	id := uuid.New()
 	stored := id.String() + ext

@@ -97,13 +97,41 @@ export type SearchForumHit = {
   name: string;
   description: string;
   category: string;
+  score?: number;
+};
+
+export type SearchThreadHit = Thread & {
+  snippet?: string;
+  score?: number;
+};
+
+export type SearchProfileHit = {
+  id: string;
+  body: string;
+  snippet?: string;
+  createdAt: string;
+  author: UserPublic;
+  profileUser: UserPublic;
+  score?: number;
 };
 
 export type SearchResponse = {
   query: string;
-  threads: Thread[];
+  scope?: string;
+  sort?: string;
+  threads: SearchThreadHit[];
   members: UserPublic[];
   forums: SearchForumHit[];
+  profilePosts?: SearchProfileHit[];
+  suggestions?: { label: string; query: string }[];
+  parsed?: {
+    terms?: string[];
+    phrase?: string;
+    author?: string;
+    forums?: string[];
+    titlesOnly?: boolean;
+    minReplies?: number;
+  };
   total: number;
   results: Thread[];
 };

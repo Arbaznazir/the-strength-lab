@@ -5,12 +5,11 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { apiFetch, getToken, setToken } from "./api";
+import { apiFetch, clearToken, getToken, setToken } from "./api";
 import type { AuthResponse, MeResponse, UserPublic } from "./types";
 
 type AuthContextValue = {
@@ -41,35 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const t = getToken();
-    if (!t) {
-      setUser(null);
-      setTokenState(null);
-      setUnreadAlerts(0);
-      setUnreadMessages(0);
-      setLoading(false);
-      return;
-    }
     try {
-      const data = await apiFetch<MeResponse>("/me", { token: t });
-      setTokenState(t);
-      // Always trust /me — role and other fields must stay in sync with the server.
+      // Cookie session and/or memory bearer — always try /me
+      const t = getToken();
+      const data = await apiFetch<MeResponse>("/me", t ? { token: t } : {});
+      if (t) setTokenState(t);
       setUser(data.user);
       setUnreadAlerts(data.unreadAlerts);
       setUnreadMessages(data.unreadMessages);
     } catch {
-      setToken(null);
+      clearToken();
       setTokenState(null);
       setUser(null);
       setUnreadAlerts(0);
       setUnreadMessages(0);
     } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!getToken()) {
       setLoading(false);
     }
   }, []);
@@ -105,7 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    setToken(null);
+    void apiFetch("/auth/logout", { method: "POST", auth: false }).catch(() => undefined);
+    clearToken();
     setTokenState(null);
     setUser(null);
     setUnreadAlerts(0);
