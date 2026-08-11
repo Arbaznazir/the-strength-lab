@@ -1,0 +1,37 @@
+# Root
+.env
+.env.local
+.env.*.local
+!.env.example
+.logs/
+.pgdata/
+.pg-run/
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# API
+api/bin/
+api/tmp/
+api/server
+api/coverage.out
+api/.env
+api/.env.local
+!api/.env.example
+
+# Web
+web/node_modules/
+web/.next/
+web/out/
+web/build/
+web/coverage/
+web/.vercel/
+web/*.tsbuildinfo
+web/.env
+web/.env.local
+!web/.env.example
+web/.git/

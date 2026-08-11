@@ -1,0 +1,8 @@
+# API local ignore
+.env
+.env.local
+bin/
+tmp/
+server
+coverage.out
+uploads/
