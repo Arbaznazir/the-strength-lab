@@ -66,12 +66,17 @@ func (a *API) Login(w http.ResponseWriter, r *http.Request) {
 	login := strings.TrimSpace(req.Login)
 	var id uuid.UUID
 	var username, role, hash string
+	var bannedAt sql.NullTime
 	err := a.DB.QueryRow(
-		`SELECT id, username, role, password_hash FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($1)`,
+		`SELECT id, username, role, password_hash, banned_at FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($1)`,
 		login,
-	).Scan(&id, &username, &role, &hash)
+	).Scan(&id, &username, &role, &hash, &bannedAt)
 	if err != nil || !auth.CheckPassword(hash, req.Password) {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	if bannedAt.Valid {
+		writeError(w, http.StatusForbidden, "account suspended")
 		return
 	}
 	token, _, err := auth.IssueToken(a.JWTSecret, a.JWTTTL, id, username, role)

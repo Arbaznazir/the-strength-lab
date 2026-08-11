@@ -8,6 +8,8 @@ import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Attachment, Post, Thread } from "@/lib/types";
 import { PostCard } from "@/components/PostCard";
+import { ThreadModBar } from "@/components/admin/ThreadModBar";
+import { isStaff } from "@/lib/admin";
 import { ImageAttach } from "@/components/ImageAttach";
 import { ShareModal } from "@/components/ShareModal";
 import { ShareBar } from "@/components/ShareBar";
@@ -29,6 +31,7 @@ export default function ThreadPageInner({
   const { slug } = use(params);
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const staff = isStaff(user);
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [page, setPage] = useState(1);
@@ -223,6 +226,13 @@ export default function ThreadPageInner({
 
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
 
+      {thread && staff ? (
+        <ThreadModBar
+          thread={thread}
+          onUpdated={(patch) => setThread((t) => (t ? { ...t, ...patch } : t))}
+        />
+      ) : null}
+
       {pages > 1 ? (
         <div className="flex flex-wrap items-center gap-2">
           {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
@@ -250,7 +260,7 @@ export default function ThreadPageInner({
             index={(page - 1) * 20 + i}
             threadSlug={slug}
             threadTitle={thread?.title}
-            canReply={Boolean(user && !thread?.isLocked)}
+            canReply={Boolean(user && (!thread?.isLocked || staff))}
             onReply={(p) =>
               scrollToReply(`@${p.author.username} `, undefined)
             }
@@ -259,6 +269,9 @@ export default function ThreadPageInner({
                 `> ${p.body.split("\n").join("\n> ")}\n\n`,
                 p.id,
               )
+            }
+            onDeleted={(postId) =>
+              setPosts((prev) => prev.filter((p) => p.id !== postId))
             }
           />
         ))}
@@ -298,14 +311,14 @@ export default function ThreadPageInner({
         </div>
       ) : null}
 
-      {user && thread?.isLocked ? (
+      {user && thread?.isLocked && !staff ? (
         <p className="flex items-center gap-2 border border-[var(--line)] bg-[var(--bg-elevated)] p-4 text-sm text-[var(--muted)]">
           <Lock className="h-4 w-4 shrink-0" />
           This thread is locked. No new replies can be posted.
         </p>
       ) : null}
 
-      {user && !thread?.isLocked ? (
+      {user && (!thread?.isLocked || staff) ? (
         <form
           ref={replyRef}
           onSubmit={(e) => void submitReply(e)}

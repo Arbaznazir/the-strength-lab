@@ -50,6 +50,9 @@ func main() {
 	}
 	_ = os.MkdirAll(api.UploadDir, 0o755)
 
+	api.LoadStaffRoles()
+	middleware.SetStaffChecker(api.IsStaffRole)
+
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
@@ -119,8 +122,17 @@ func main() {
 			r.Post("/reports", api.Report)
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.StaffRequired)
+				r.Get("/admin/dashboard", api.AdminDashboard)
 				r.Get("/admin/reports", api.ListReports)
 				r.Post("/admin/reports/{id}/resolve", api.ResolveReport)
+				r.Patch("/admin/threads/{slug}", api.ModThread)
+				r.Delete("/admin/threads/{slug}", api.DeleteThread)
+				r.Delete("/admin/posts/{id}", api.DeletePost)
+				r.Get("/admin/users", api.ListAdminUsers)
+				r.Patch("/admin/users/{id}", api.PatchAdminUser)
+				r.Get("/admin/log", api.ListModerationLog)
+				r.Get("/admin/roles", api.ListRoles)
+				r.With(middleware.AdminRequired).Post("/admin/roles", api.CreateRole)
 			})
 		})
 	})

@@ -53,14 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiFetch<MeResponse>("/me", { token: t });
       setTokenState(t);
-      setUser((prev) =>
-        prev?.id === data.user.id &&
-        prev.messageCount === data.user.messageCount &&
-        prev.avatarUrl === data.user.avatarUrl &&
-        prev.displayName === data.user.displayName
-          ? prev
-          : data.user,
-      );
+      // Always trust /me — role and other fields must stay in sync with the server.
+      setUser(data.user);
       setUnreadAlerts(data.unreadAlerts);
       setUnreadMessages(data.unreadMessages);
     } catch {

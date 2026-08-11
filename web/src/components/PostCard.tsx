@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, Flag, MessageSquare, Quote, Share2 } from "lucide-react";
+import { Heart, Flag, MessageSquare, Quote, Share2, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import Link from "next/link";
 import type { Post } from "@/lib/types";
 import { relativeTime } from "@/lib/format";
 import { apiFetch, mediaURL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { isStaff } from "@/lib/admin";
 import { postShareURL } from "@/lib/site";
 import { renderTextWithMentions } from "@/lib/mentions";
 import { Avatar } from "./Avatar";
@@ -22,6 +23,7 @@ export function PostCard({
   onReply,
   onQuote,
   onReacted,
+  onDeleted,
 }: {
   post: Post;
   index?: number;
@@ -31,8 +33,10 @@ export function PostCard({
   onReply?: (post: Post) => void;
   onQuote?: (post: Post) => void;
   onReacted?: (postId: string, reacted: boolean) => void;
+  onDeleted?: (postId: string) => void;
 }) {
   const { user } = useAuth();
+  const staff = isStaff(user);
   const [busy, setBusy] = useState(false);
   const [reacted, setReacted] = useState(post.reactedByMe);
   const [count, setCount] = useState(post.reactionCount);
@@ -83,7 +87,21 @@ export function PostCard({
     }
   }
 
-  const isStaff = post.author.role === "admin" || post.author.role === "moderator";
+  async function removePost() {
+    if (!staff || busy) return;
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/admin/posts/${post.id}`, { method: "DELETE" });
+      onDeleted?.(post.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isAuthorStaff = post.author.role === "admin" || post.author.role === "moderator";
   const attachments = post.attachments ?? [];
   const shareUrl = postShareURL(threadSlug, post.id);
   const shareText = threadTitle || `Post by ${post.author.displayName}`;
@@ -100,7 +118,7 @@ export function PostCard({
             >
               {post.author.displayName}
             </Link>
-            <p className={clsx("mt-0.5 text-[11px]", isStaff ? "text-[var(--staff)]" : "text-[var(--muted)]")}>
+            <p className={clsx("mt-0.5 text-[11px]", isAuthorStaff ? "text-[var(--staff)]" : "text-[var(--muted)]")}>
               {post.author.title || post.author.role}
             </p>
             <p className="mt-2 hidden text-[11px] text-[var(--muted)] md:block">
@@ -205,6 +223,17 @@ export function PostCard({
             >
               <Flag className="h-3.5 w-3.5" />
               Report
+            </button>
+          ) : null}
+          {staff ? (
+            <button
+              type="button"
+              onClick={() => void removePost()}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 border border-[var(--danger)]/40 px-2.5 py-1.5 text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
             </button>
           ) : null}
           <button

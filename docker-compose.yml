@@ -46,6 +46,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://strengthlab:strengthlab@postgres:5432/strengthlab?sslmode=disable}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      SEED_BULK: ${SEED_BULK:-true}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:

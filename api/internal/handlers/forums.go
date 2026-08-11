@@ -485,7 +485,7 @@ func (a *API) ReplyThread(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "thread not found")
 		return
 	}
-	if locked {
+	if locked && claims.Role != "moderator" && claims.Role != "admin" {
 		writeError(w, http.StatusForbidden, "thread is locked")
 		return
 	}

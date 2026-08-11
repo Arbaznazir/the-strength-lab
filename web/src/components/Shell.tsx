@@ -221,18 +221,13 @@ export function Shell({ children }: { children: ReactNode }) {
                     Profile
                   </Link>
                   {(user.role === "admin" || user.role === "moderator") ? (
-                    <Link href="/admin/reports" className="block px-3 py-2 text-sm hover:bg-[var(--accent-dim)]">
-                      Reports
+                    <Link href="/admin" className="block px-3 py-2 text-sm hover:bg-[var(--accent-dim)]">
+                      Admin panel
                     </Link>
                   ) : null}
                       <Link href="/messages" className="block px-3 py-2 text-sm hover:bg-[var(--accent-dim)]">
                         Messages
                       </Link>
-                      {(user.role === "admin" || user.role === "moderator") ? (
-                        <Link href="/admin/reports" className="block px-3 py-2 text-sm hover:bg-[var(--accent-dim)]">
-                          Reports
-                        </Link>
-                      ) : null}
                         <button
                           type="button"
                           onClick={logout}

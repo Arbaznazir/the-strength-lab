@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 const demos = ["coach", "spotter", "lifter"];
@@ -13,6 +13,8 @@ const BG =
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") || "/";
   const [loginName, setLoginName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -24,7 +26,7 @@ export default function LoginPage() {
     setError("");
     try {
       await login(loginName, password);
-      router.push("/");
+      router.push(nextPath.startsWith("/") ? nextPath : "/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

@@ -39,10 +39,35 @@ func AuthRequired(secret string) func(http.Handler) http.Handler {
 	}
 }
 
+var staffChecker func(string) bool
+
+func SetStaffChecker(fn func(string) bool) {
+	staffChecker = fn
+}
+
 func StaffRequired(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, _ := r.Context().Value(UserKey).(*auth.Claims)
-		if claims == nil || (claims.Role != "moderator" && claims.Role != "admin") {
+		if claims == nil {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		staff := claims.Role == "moderator" || claims.Role == "admin"
+		if !staff && staffChecker != nil {
+			staff = staffChecker(claims.Role)
+		}
+		if !staff {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func AdminRequired(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, _ := r.Context().Value(UserKey).(*auth.Claims)
+		if claims == nil || claims.Role != "admin" {
 			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 			return
 		}
