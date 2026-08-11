@@ -38,3 +38,8 @@ export function formatCount(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }
+
+/** Exact count with commas — used for member totals. */
+export function formatMemberCount(n: number): string {
+  return n.toLocaleString("en-US");
+}

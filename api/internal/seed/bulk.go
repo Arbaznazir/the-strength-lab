@@ -12,9 +12,9 @@ import (
 	"github.com/thestrengthlab/api/internal/auth"
 )
 
-const bulkUserTarget = 500
+const bulkUserTarget = 2150
 
-// RunBulk fills the forum with ~500 members and ~3 months of realistic activity.
+// RunBulk fills the forum with ~2150 members and ~3 months of realistic activity.
 // Safe to re-run: skips when user count already meets the target.
 func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID string) error {
 	var userCount, threadCount int
@@ -22,6 +22,13 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		return err
 	}
 	if err := db.QueryRow(`SELECT COUNT(*) FROM threads`).Scan(&threadCount); err != nil {
+		return err
+	}
+
+	if err := trimDemoUsersToTarget(db, bulkUserTarget); err != nil {
+		return fmt.Errorf("trim demo users: %w", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&userCount); err != nil {
 		return err
 	}
 	if userCount >= bulkUserTarget && threadCount >= 100 {
@@ -570,6 +577,34 @@ func capitalize(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// trimDemoUsersToTarget removes excess seeded demo accounts when a prior run overshot the cap.
+func trimDemoUsersToTarget(db *sql.DB, target int) error {
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count); err != nil {
+		return err
+	}
+	excess := count - target
+	if excess <= 0 {
+		return nil
+	}
+	res, err := db.Exec(`
+		DELETE FROM users WHERE id IN (
+			SELECT id FROM users
+			WHERE email LIKE '%@demo.thestrengthlab.local'
+			  AND username NOT IN ('coach', 'spotter', 'lifter')
+			ORDER BY created_at ASC
+			LIMIT $1
+		)
+	`, excess)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("bulk seed: trimmed %d excess demo members (target %d)", n, target)
+	}
+	return nil
 }
 
 func pickActiveMember(rng *rand.Rand, members []member, notBefore time.Time) member {

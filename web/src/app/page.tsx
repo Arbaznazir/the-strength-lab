@@ -13,7 +13,7 @@ import { SocialLinks } from "@/components/SocialLinks";
 import { NewPostButton } from "@/components/NewPostButton";
 import { useAuth } from "@/lib/auth";
 
-const HERO_IMAGE = "/images/hero-gym-tiger.jpg";
+const HERO_IMAGE = "/images/hero-gym-headphones.jpg";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -59,7 +59,7 @@ export default function HomePage() {
             fill
             priority
             sizes="100vw"
-            className="hero-kenburns object-cover object-[58%_40%] opacity-60 sm:object-[52%_40%] md:object-[center_40%]"
+            className="hero-kenburns object-cover object-[62%_45%] opacity-65 sm:object-[58%_42%] md:object-[center_40%]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0a0c0b] via-[#0a0c0b]/78 to-[#0a0c0b]/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c0b] via-transparent to-[#0a0c0b]/40" />

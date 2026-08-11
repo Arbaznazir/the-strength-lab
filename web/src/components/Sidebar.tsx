@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
-import { formatCount, relativeTime } from "@/lib/format";
+import { formatCount, formatMemberCount, relativeTime } from "@/lib/format";
 import type {
   ForumStats,
   OnlineStats,
@@ -82,7 +82,7 @@ export function Sidebar() {
             <dl className="grid grid-cols-2 gap-x-3 gap-y-4">
               <Stat label="Threads" value={formatCount(stats.forum.threads)} />
               <Stat label="Messages" value={formatCount(stats.forum.messages)} />
-              <Stat label="Members" value={formatCount(stats.forum.members)} />
+              <Stat label="Members" value={formatMemberCount(stats.forum.members)} />
               <div>
                 <dt className="kicker !text-[0.62rem]">Newest</dt>
                 <dd className="mt-1 text-sm font-medium">

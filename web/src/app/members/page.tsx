@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { formatCount } from "@/lib/format";
+import { formatMemberCount } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/pagination";
 import type { UserPublic } from "@/lib/types";
 import { Pagination } from "@/components/Pagination";
@@ -151,7 +151,7 @@ function MembersInner() {
           </h1>
           <p className="mt-2 text-[var(--muted)]">
             {overview
-              ? `${formatCount(overview.totalMembers)} lifters in the lab`
+              ? `${formatMemberCount(overview.totalMembers)} lifters in the lab`
               : "The lifters putting in the work."}
           </p>
         </div>

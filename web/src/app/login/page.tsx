@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { safeNextPath } from "@/lib/api";
 
-const demos = ["coach", "spotter", "lifter"];
 const BG =
   "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1800&q=80";
 
@@ -102,27 +101,6 @@ function LoginForm() {
               {busy ? "Signing in…" : "Sign in"}
             </button>
           </form>
-
-          <div className="border-t border-[var(--line)] pt-5">
-            <p className="text-xs text-[var(--muted)]">
-              Demo · password <code className="text-[var(--accent)]">password123</code>
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {demos.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  className="btn-ghost !px-3 !py-1.5 text-xs"
-                  onClick={() => {
-                    setLoginName(name);
-                    setPassword("password123");
-                  }}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <p className="text-sm text-[var(--muted)]">
             New here?{" "}

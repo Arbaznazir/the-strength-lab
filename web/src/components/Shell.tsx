@@ -59,12 +59,13 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [userMenu]);
 
   const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
+  // Desktop/tablet only — phones use the hamburger menu (avoids a cramped header)
   const guestAuth = (
-    <>
+    <div className="hidden items-center gap-1 sm:flex">
       <Link
         href="/login"
         className={clsx(
-          "inline-flex items-center px-2.5 py-1.5 text-sm font-semibold transition-colors sm:px-3 sm:py-2",
+          "inline-flex items-center px-3 py-2 text-sm font-semibold transition-colors",
           isHome
             ? "rounded border border-white/25 text-white hover:border-white/50 hover:bg-white/10"
             : "text-[var(--muted)] hover:text-[var(--fg)]",
@@ -75,13 +76,13 @@ export function Shell({ children }: { children: ReactNode }) {
       <Link
         href="/register"
         className={clsx(
-          "btn-primary shrink-0 !px-2.5 !py-1.5 text-xs sm:!px-3 sm:!py-2 sm:text-sm",
+          "btn-primary shrink-0 !px-3 !py-2 text-sm",
           isHome && "shadow-[0_4px_20px_-8px_var(--glow)]",
         )}
       >
         Join
       </Link>
-    </>
+    </div>
   );
 
   return (
@@ -158,13 +159,14 @@ export function Shell({ children }: { children: ReactNode }) {
               variant="header"
               className={clsx("mr-0.5 hidden lg:flex", isHome && "text-white/60")}
             />
-            <NewPostButton
-              compact
-              className={clsx(
-                "mr-1 hidden md:inline-flex",
-                isHome && "!bg-[var(--accent)] !text-[var(--accent-ink)]",
-              )}
-            />
+            <div className="mr-1 hidden md:block">
+              <NewPostButton
+                compact
+                className={clsx(
+                  isHome && "!bg-[var(--accent)] !text-[var(--accent-ink)]",
+                )}
+              />
+            </div>
             <Link
               href="/search"
               className={clsx(

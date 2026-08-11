@@ -38,7 +38,7 @@ function applyResolved(resolved: "light" | "dark") {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("system");
+  const [theme, setThemeState] = useState<ThemeMode>("dark");
   const [resolved, setResolved] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const initial =
       stored === "light" || stored === "dark" || stored === "system"
         ? stored
-        : "system";
+        : "dark";
     setThemeState(initial);
     const next = initial === "system" ? getSystemTheme() : initial;
     setResolved(next);

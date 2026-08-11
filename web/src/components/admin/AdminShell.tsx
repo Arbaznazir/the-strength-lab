@@ -43,11 +43,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           Signed in as <strong className="text-[var(--fg)]">@{user.username}</strong> (
           {user.role}). Admin access requires an admin or moderator account.
         </p>
-        <p className="mt-2 max-w-lg text-sm text-[var(--muted)]">
-          Demo staff logins: <code className="text-[var(--accent)]">coach</code> or{" "}
-          <code className="text-[var(--accent)]">spotter</code> with password{" "}
-          <code className="text-[var(--accent)]">password123</code>.
-        </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/" className="btn-ghost">
             Back to site

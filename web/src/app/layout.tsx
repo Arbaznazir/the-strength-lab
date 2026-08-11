@@ -37,7 +37,7 @@ export default function RootLayout({
     <html lang="en" className={`${dmSans.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full font-sans antialiased" suppressHydrationWarning>
         <Script id="tsl-theme-init" strategy="beforeInteractive">
-          {`(function(){try{var t=localStorage.getItem('tsl_theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);}catch(e){}})();`}
+          {`(function(){try{var t=localStorage.getItem('tsl_theme')||'dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);}catch(e){}})();`}
         </Script>
         <ThemeProvider>
           <AuthProvider>

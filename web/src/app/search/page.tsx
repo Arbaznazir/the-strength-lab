@@ -198,18 +198,25 @@ function SearchInner() {
         }}
         className="space-y-4"
       >
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+        <div className="flex overflow-hidden rounded border border-[var(--line)] bg-[var(--bg)] transition-[border-color,box-shadow] focus-within:border-[color-mix(in_oklab,var(--accent)_60%,var(--line))] focus-within:shadow-[0_0_0_3px_var(--accent-dim)]">
+          <div className="relative flex min-w-0 flex-1 items-center">
+            <Search
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
+              aria-hidden
+            />
             <input
-              className="field w-full pl-10"
+              className="w-full min-w-0 border-0 bg-transparent py-3 pl-11 pr-3 text-[0.925rem] text-[var(--fg)] outline-none placeholder:text-[var(--muted)]"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Keywords, @user, from:spotter, title: squat…"
               autoFocus
             />
           </div>
-          <button type="submit" className="btn-primary shrink-0" disabled={busy}>
+          <button
+            type="submit"
+            className="btn-primary shrink-0 rounded-none border-0 !px-5 !py-3"
+            disabled={busy}
+          >
             {busy ? "…" : "Search"}
           </button>
         </div>
