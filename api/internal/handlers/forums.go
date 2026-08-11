@@ -366,9 +366,10 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 	page := 1
 	if highlight := r.URL.Query().Get("postId"); highlight != "" {
 		var pos int
+		// Newest-first: page by how many posts are newer-or-equal
 		err := a.DB.QueryRow(`
 			SELECT COUNT(*) FROM posts
-			WHERE thread_id=$1 AND created_at <= (
+			WHERE thread_id=$1 AND created_at >= (
 			  SELECT created_at FROM posts WHERE id=$2 AND thread_id=$1
 			)
 		`, t.ID, highlight).Scan(&pos)
@@ -394,9 +395,9 @@ func (a *API) GetThread(w http.ResponseWriter, r *http.Request) {
 		FROM posts p
 		JOIN users u ON u.id=p.author_id
 		LEFT JOIN posts qp ON qp.id = p.quoted_post_id
-	 LEFT JOIN users qu ON qu.id = qp.author_id
+		LEFT JOIN users qu ON qu.id = qp.author_id
 		WHERE p.thread_id=$1
-		ORDER BY p.created_at ASC
+		ORDER BY p.created_at DESC
 		LIMIT $3 OFFSET $4
 	`, t.ID, nullableUUID(userID), perPage, offset)
 	if err != nil {

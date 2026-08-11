@@ -124,7 +124,8 @@ export default function ThreadPageInner({
       setReply("");
       setQuotedPostId(null);
       setAttachments([]);
-      await load(pages);
+      // Newest-first: jump to page 1 so the new reply is visible at the top
+      await load(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reply failed");
     } finally {
@@ -258,7 +259,7 @@ export default function ThreadPageInner({
           <PostCard
             key={post.id}
             post={post}
-            index={(page - 1) * PAGE_SIZE + i}
+            index={Math.max(0, totalPosts - ((page - 1) * PAGE_SIZE + i) - 1)}
             threadSlug={slug}
             threadTitle={thread?.title}
             canReply={Boolean(user && (!thread?.isLocked || staff))}
