@@ -35,3 +35,10 @@ web/.env
 web/.env.local
 !web/.env.example
 web/.git/
+
+# WhatsApp misnamed MP4s at repo root (canonical copies live in web/public/sponsors/)
+/1.gif
+/2.gif
+/3.gif
+/*.gif
+

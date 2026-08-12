@@ -55,9 +55,59 @@ func Run(db *sql.DB) error {
 	if err := ensureTrustedStores(db, forumIDs); err != nil {
 		return fmt.Errorf("trusted stores seed: %w", err)
 	}
+	if err := ensureSponsorBanners(db); err != nil {
+		return fmt.Errorf("sponsor banners seed: %w", err)
+	}
 	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
 		return fmt.Errorf("user tags seed: %w", err)
 	}
+	return nil
+}
+
+func ensureSponsorBanners(db *sql.DB) error {
+	const seedFlag = "seed_sponsor_banners"
+	var alreadySeeded bool
+	if err := db.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE filename=$1)`, seedFlag,
+	).Scan(&alreadySeeded); err != nil {
+		return err
+	}
+	if alreadySeeded {
+		return nil
+	}
+
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sponsor_banners`).Scan(&n); err != nil {
+		return err
+	}
+	// Rows already present from an earlier run — mark seeded so admin deletes stick across restarts
+	if n > 0 {
+		_, _ = db.Exec(`INSERT INTO schema_migrations(filename) VALUES($1) ON CONFLICT DO NOTHING`, seedFlag)
+		return nil
+	}
+
+	log.Println("seeding sponsor banners…")
+	demos := []struct {
+		name, image, link string
+		order             int
+	}{
+		{"Ace Labs", "/sponsors/1.mp4", "https://example.com/ace-labs", 1},
+		{"Purity Source Labs", "/sponsors/2.mp4", "https://example.com/purity-source-labs", 2},
+		{"Exo-Gen", "/sponsors/3.mp4", "https://example.com/exo-gen", 3},
+	}
+	for _, d := range demos {
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, sort_order, is_active)
+			VALUES($1,$2,$3,$4,$5,true)
+		`, id, d.name, d.image, d.link, d.order); err != nil {
+			return err
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO schema_migrations(filename) VALUES($1) ON CONFLICT DO NOTHING`, seedFlag); err != nil {
+		return err
+	}
+	log.Println("sponsor banners seeded (Ace Labs, Purity Source Labs, Exo-Gen)")
 	return nil
 }
 
