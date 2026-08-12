@@ -121,24 +121,25 @@ function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
   const media = isVideoBanner(banner.imageUrl) ? (
     <video
       src={src}
-      className="h-full w-full object-contain"
+      className="pointer-events-none h-full w-full object-contain"
       autoPlay
       muted
       loop
       playsInline
-      aria-label={banner.name}
+      tabIndex={-1}
+      aria-hidden
     />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={banner.name}
-      className="h-full w-full object-contain"
+      className="pointer-events-none h-full w-full object-contain"
     />
   );
 
   const shellClass =
-    "mt-3 block w-full overflow-hidden border border-[var(--line)] bg-[var(--bg)] aspect-[6/1] max-h-28 sm:max-h-32";
+    "mt-3 block w-full cursor-pointer overflow-hidden border border-[var(--line)] bg-[var(--bg)] aspect-[6/1] max-h-28 sm:max-h-32";
 
   if (href) {
     return (
@@ -147,7 +148,7 @@ function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
         target="_blank"
         rel="noopener noreferrer sponsored"
         className={shellClass}
-        onClick={(e) => e.stopPropagation()}
+        aria-label={`Visit ${banner.name}`}
       >
         {media}
       </a>

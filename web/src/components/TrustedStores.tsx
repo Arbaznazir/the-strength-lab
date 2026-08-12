@@ -88,14 +88,30 @@ export function TrustedStoresBoard() {
                 </p>
               ) : null}
               {banner ? (
-                <div className="relative mt-3 aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={banner}
-                    alt=""
-                    className="h-full w-full max-w-full object-cover"
-                  />
-                </div>
+                external ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative mt-3 block aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={banner}
+                      alt=""
+                      className="h-full w-full max-w-full object-cover"
+                    />
+                  </a>
+                ) : (
+                  <div className="relative mt-3 aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={banner}
+                      alt=""
+                      className="h-full w-full max-w-full object-cover"
+                    />
+                  </div>
+                )
               ) : null}
               <p className="mt-3 text-xs text-[var(--muted)]">
                 Topics: {formatCount(s.threadCount)} · Posts:{" "}

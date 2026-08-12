@@ -58,6 +58,9 @@ func Run(db *sql.DB) error {
 	if err := ensureSponsorBanners(db); err != nil {
 		return fmt.Errorf("sponsor banners seed: %w", err)
 	}
+	if err := syncSponsorBannerLinks(db); err != nil {
+		return fmt.Errorf("sponsor banner links: %w", err)
+	}
 	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
 		return fmt.Errorf("user tags seed: %w", err)
 	}
@@ -91,9 +94,9 @@ func ensureSponsorBanners(db *sql.DB) error {
 		name, image, link string
 		order             int
 	}{
-		{"Ace Labs", "/sponsors/1.mp4", "https://example.com/ace-labs", 1},
-		{"Purity Source Labs", "/sponsors/2.mp4", "https://example.com/purity-source-labs", 2},
-		{"Exo-Gen", "/sponsors/3.mp4", "https://example.com/exo-gen", 3},
+		{"Steroidify", "/sponsors/steroidify.mp4", "https://steroidify.ltd/", 1},
+		{"Dragon Pharma Store", "/sponsors/dragon-pharma.mp4", "https://dragonpharmastore.to/", 2},
+		{"DMK Labs USA", "/sponsors/dmk-labs.mp4", "https://dmklabsusa.com/", 3},
 	}
 	for _, d := range demos {
 		id := uuid.New()
@@ -107,7 +110,40 @@ func ensureSponsorBanners(db *sql.DB) error {
 	if _, err := db.Exec(`INSERT INTO schema_migrations(filename) VALUES($1) ON CONFLICT DO NOTHING`, seedFlag); err != nil {
 		return err
 	}
-	log.Println("sponsor banners seeded (Ace Labs, Purity Source Labs, Exo-Gen)")
+	log.Println("sponsor banners seeded (Steroidify, Dragon Pharma Store, DMK Labs USA)")
+	return nil
+}
+
+// syncSponsorBannerLinks keeps demo banner URLs correct across restarts (idempotent).
+// File numbers (1/2/3.mp4) do not match brands — use named files.
+func syncSponsorBannerLinks(db *sql.DB) error {
+	links := []struct{ image, name, link string }{
+		{"/sponsors/steroidify.mp4", "Steroidify", "https://steroidify.ltd/"},
+		{"/sponsors/dragon-pharma.mp4", "Dragon Pharma Store", "https://dragonpharmastore.to/"},
+		{"/sponsors/dmk-labs.mp4", "DMK Labs USA", "https://dmklabsusa.com/"},
+	}
+	for _, l := range links {
+		if _, err := db.Exec(`
+			UPDATE sponsor_banners SET name=$2, link_url=$3, image_url=$1
+			WHERE image_url = $1 OR image_url LIKE '%' || $1
+		`, l.image, l.name, l.link); err != nil {
+			return err
+		}
+	}
+	// Migrate legacy numbered filenames to correct brand + link
+	legacy := []struct{ old, image, name, link string }{
+		{"3.mp4", "/sponsors/steroidify.mp4", "Steroidify", "https://steroidify.ltd/"},
+		{"2.mp4", "/sponsors/dragon-pharma.mp4", "Dragon Pharma Store", "https://dragonpharmastore.to/"},
+		{"1.mp4", "/sponsors/dmk-labs.mp4", "DMK Labs USA", "https://dmklabsusa.com/"},
+	}
+	for _, l := range legacy {
+		if _, err := db.Exec(`
+			UPDATE sponsor_banners SET name=$3, link_url=$4, image_url=$2
+			WHERE image_url LIKE '%/sponsors/' || $1
+		`, l.old, l.image, l.name, l.link); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -127,27 +163,27 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 	}
 	stores := []store{
 		{
-			name: "Iron Forge Supply", slug: "iron-forge", tag: "Trusted Source", color: "#d4ff3a",
+			name: "Anabolic Dragon", slug: "anabolic-dragon", tag: "Trusted Source", color: "#e85d5d",
 			banner: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80",
-			link: "https://example.com/iron-forge", desc: "Gear, belts, and recovery tools for serious lifters.",
+			link: "https://anabolic-dragon.com/dr/", desc: "Pharmaceutical-grade compounds and peptides.",
 			forumKey: "supplements", order: 1,
 		},
 		{
-			name: "Peak GH Labs", slug: "peak-gh", tag: "GH Source", color: "#7dd3c0",
+			name: "NapsGear", slug: "napsgear", tag: "Trusted Source", color: "#7dd3c0",
 			banner: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80",
-			link: "https://example.com/peak-gh", desc: "Research-backed peptide & recovery discussion partner.",
+			link: "https://www.napsgear.org/", desc: "Established source with worldwide shipping.",
 			forumKey: "hormone-health", order: 2,
 		},
 		{
-			name: "BarPath Nutrition", slug: "barpath-nutrition", tag: "Trusted Source", color: "#f0c14b",
+			name: "DMK Labs USA", slug: "dmk-labs-usa", tag: "Trusted Source", color: "#f0c14b",
 			banner: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80",
-			link: "https://example.com/barpath", desc: "Macros, meal timing, and competition fueling.",
+			link: "https://dmklabsusa.com/", desc: "Quality raw materials and finished products.",
 			forumKey: "nutrition", order: 3,
 		},
 		{
-			name: "Clarity Recovery", slug: "clarity-recovery", tag: "Trusted Source", color: "#9bb8ff",
+			name: "Your Muscle Shop", slug: "your-muscle-shop", tag: "Trusted Source", color: "#9bb8ff",
 			banner: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
-			link: "https://example.com/clarity", desc: "Sleep, tendons, and coming back stronger.",
+			link: "https://www.yourmuscleshop.org/", desc: "Trusted supplier for serious lifters.",
 			forumKey: "recovery", order: 4,
 		},
 	}
