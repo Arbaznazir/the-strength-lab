@@ -12,10 +12,12 @@ import (
 	"github.com/thestrengthlab/api/internal/auth"
 )
 
-const bulkUserTarget = 2150
+const bulkUserTarget = 18593
+const bulkThreadTarget = 1680 // >1.5k threads; with replies ≈24k messages
 
-// RunBulk fills the forum with ~2150 members and ~3 months of realistic activity.
-// Safe to re-run: skips when user count already meets the target.
+// RunBulk fills the forum with ~18.5k members, ~1.7k threads, ~24k posts,
+// and ~3 months of realistic activity. Safe to re-run: tops up users/threads
+// until targets are met (won't wipe existing content).
 func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID string) error {
 	var userCount, threadCount int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&userCount); err != nil {
@@ -31,12 +33,13 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 	if err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&userCount); err != nil {
 		return err
 	}
-	if userCount >= bulkUserTarget && threadCount >= 100 {
+	if userCount >= bulkUserTarget && threadCount >= bulkThreadTarget {
 		log.Printf("bulk seed skipped (already have %d users, %d threads)", userCount, threadCount)
 		return nil
 	}
 
-	log.Printf("bulk seed starting (%d users → %d, %d threads)…", userCount, bulkUserTarget, threadCount)
+	log.Printf("bulk seed starting (%d users → %d, %d threads → %d)…",
+		userCount, bulkUserTarget, threadCount, bulkThreadTarget)
 	start := time.Now()
 	rng := rand.New(rand.NewSource(42)) // deterministic for reproducible demos
 
@@ -136,7 +139,7 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		log.Printf("bulk seed: created %d members", created)
 	}
 
-	if threadCount >= 100 {
+	if threadCount >= bulkThreadTarget {
 		log.Printf("bulk seed: content skipped (already have %d threads)", threadCount)
 		return nil
 	}
@@ -164,8 +167,11 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		title                       string
 	}
 
-	const bulkThreadCount = 220
-	threads := make([]threadRef, 0, bulkThreadCount)
+	needThreads := bulkThreadTarget - threadCount
+	if needThreads < 0 {
+		needThreads = 0
+	}
+	threads := make([]threadRef, 0, needThreads)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -192,15 +198,15 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 	}
 	defer opStmt.Close()
 
-	for i := 0; i < bulkThreadCount; i++ {
+	for i := 0; i < needThreads; i++ {
 		author := pickActiveMember(rng, members, epoch.AddDate(0, 0, i%90))
 		forumSlug := forumSlugs[rng.Intn(len(forumSlugs))]
 		fid := forumIDs[forumSlug]
 		tpl := threadTemplates[rng.Intn(len(threadTemplates))]
 		title := tpl.title
-		// Slight variation so titles aren't identical across 200+ threads
-		if rng.Float32() < 0.25 {
-			title = fmt.Sprintf("%s (%s)", title, []string{"update", "week notes", "lab take", "check-in"}[rng.Intn(4)])
+		// Slight variation so titles aren't identical across many threads
+		if rng.Float32() < 0.28 {
+			title = fmt.Sprintf("%s (%s)", title, []string{"update", "week notes", "lab take", "check-in", "form check", "results"}[rng.Intn(6)])
 		}
 		body := tpl.body
 		if rng.Float32() < 0.35 {
@@ -213,9 +219,9 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		pid := uuid.New()
 		createdAt := randomTimeBetween(rng, maxTime(author.joined, epoch), now)
 		slug := fmt.Sprintf("%s-%s", slugify(title), tid.String()[:8])
-		featured := rng.Float32() < 0.04
-		pinned := rng.Float32() < 0.015
-		views := 20 + rng.Intn(900)
+		featured := rng.Float32() < 0.035
+		pinned := rng.Float32() < 0.012
+		views := 35 + rng.Intn(2800)
 
 		if _, err := threadStmt.Exec(tid, fid, author.id, title, slug, pinned, featured, views, createdAt); err != nil {
 			return err
@@ -231,7 +237,7 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	log.Printf("bulk seed: created %d threads", len(threads))
+	log.Printf("bulk seed: created %d threads (target %d)", len(threads), bulkThreadTarget)
 
 	// Replies with staggered timestamps + @mentions
 	tx, err = db.Begin()
@@ -262,13 +268,22 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		id, authorID, threadID string
 		created                time.Time
 	}
-	posts := make([]postRef, 0, threadCount*8)
+	posts := make([]postRef, 0, len(threads)*16)
 	replyTotal := 0
 
 	for _, th := range threads {
-		replies := 2 + rng.Intn(14) // 2–15 replies
-		if rng.Float32() < 0.12 {
-			replies += rng.Intn(20) // hot threads
+		// Realistic mix: quiet / normal / busy / hot (≈13 replies avg → ~24k messages)
+		roll := rng.Float32()
+		var replies int
+		switch {
+		case roll < 0.22:
+			replies = 2 + rng.Intn(5) // 2–6 quiet
+		case roll < 0.70:
+			replies = 7 + rng.Intn(9) // 7–15 normal
+		case roll < 0.93:
+			replies = 13 + rng.Intn(12) // 13–24 busy
+		default:
+			replies = 26 + rng.Intn(28) // 26–53 hot
 		}
 		lastAt := th.created
 		lastPoster := th.authorID
@@ -397,7 +412,7 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		return err
 	}
 	defer chatStmt.Close()
-	for i := 0; i < 180; i++ {
+	for i := 0; i < 420; i++ {
 		u := pickActiveMember(rng, members, epoch)
 		at := randomTimeBetween(rng, epoch, now)
 		body := chatLines[rng.Intn(len(chatLines))]
@@ -429,7 +444,7 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 		return err
 	}
 	defer ppStmt.Close()
-	for i := 0; i < 120; i++ {
+	for i := 0; i < 380; i++ {
 		profile := members[rng.Intn(len(members))]
 		author := pickActiveMember(rng, members, profile.joined)
 		at := randomTimeBetween(rng, maxTime(profile.joined, epoch), now)
