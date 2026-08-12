@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import { cookies } from "next/headers";
 import { DM_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { MessagesRealtimeProvider } from "@/lib/messagesRealtime";
@@ -12,6 +12,11 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
+
+function resolveServerTheme(stored: string | undefined): "light" | "dark" {
+  if (stored === "light") return "light";
+  return "dark";
+}
 
 export const metadata: Metadata = {
   title: {
@@ -28,18 +33,24 @@ export const viewport = {
   viewportFit: "cover" as const,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const stored = cookieStore.get("tsl_theme")?.value;
+  const resolved = resolveServerTheme(stored);
+
   return (
-    <html lang="en" className={`${dmSans.variable} h-full`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${dmSans.variable} h-full ${resolved}`}
+      data-theme={resolved}
+      suppressHydrationWarning
+    >
       <body className="min-h-full font-sans antialiased" suppressHydrationWarning>
-        <Script id="tsl-theme-init" strategy="beforeInteractive">
-          {`(function(){try{var t=localStorage.getItem('tsl_theme')||'dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);}catch(e){}})();`}
-        </Script>
-        <ThemeProvider>
+        <ThemeProvider initialResolved={resolved}>
           <AuthProvider>
             <MessagesRealtimeProvider>
               <Shell>{children}</Shell>

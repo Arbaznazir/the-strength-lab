@@ -12,8 +12,6 @@ import {
 
 export type ThemeMode = "system" | "light" | "dark";
 
-const THEME_KEY = "tsl_theme";
-
 type ThemeContextValue = {
   theme: ThemeMode;
   resolved: "light" | "dark";
@@ -23,11 +21,19 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+const THEME_KEY = "tsl_theme";
+const THEME_COOKIE = "tsl_theme";
+
 function getSystemTheme(): "light" | "dark" {
   if (typeof window === "undefined") return "dark";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
+}
+
+function persistTheme(mode: ThemeMode) {
+  localStorage.setItem(THEME_KEY, mode);
+  document.cookie = `${THEME_COOKIE}=${mode};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
 }
 
 function applyResolved(resolved: "light" | "dark") {
@@ -37,9 +43,15 @@ function applyResolved(resolved: "light" | "dark") {
   root.classList.toggle("light", resolved === "light");
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({
+  children,
+  initialResolved = "dark",
+}: {
+  children: ReactNode;
+  initialResolved?: "light" | "dark";
+}) {
   const [theme, setThemeState] = useState<ThemeMode>("dark");
-  const [resolved, setResolved] = useState<"light" | "dark">("dark");
+  const [resolved, setResolved] = useState<"light" | "dark">(initialResolved);
 
   useEffect(() => {
     const stored = localStorage.getItem(THEME_KEY) as ThemeMode | null;
@@ -48,6 +60,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         ? stored
         : "dark";
     setThemeState(initial);
+    persistTheme(initial);
     const next = initial === "system" ? getSystemTheme() : initial;
     setResolved(next);
     applyResolved(next);
@@ -67,7 +80,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((mode: ThemeMode) => {
     setThemeState(mode);
-    localStorage.setItem(THEME_KEY, mode);
+    persistTheme(mode);
     const next = mode === "system" ? getSystemTheme() : mode;
     setResolved(next);
     applyResolved(next);

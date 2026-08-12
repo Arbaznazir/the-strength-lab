@@ -147,10 +147,12 @@ func (a *API) Stats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	memberOnline := 0
-	_ = a.DB.QueryRow(`SELECT COUNT(*) FROM users WHERE last_seen_at > NOW() - INTERVAL '5 minutes'`).Scan(&memberOnline)
-	guests := a.Guests.Count()
-	online := models.OnlineStats{Members: memberOnline, Guests: guests, Total: memberOnline + guests}
+	memberOnline, guestOnline := simulatedPresence(s.Members, time.Now())
+	realGuests := a.Guests.Count()
+	if realGuests > guestOnline {
+		guestOnline = realGuests
+	}
+	online := models.OnlineStats{Members: memberOnline, Guests: guestOnline, Total: memberOnline + guestOnline}
 
 	staff := []models.UserPublic{}
 	rows, err := a.DB.Query(`SELECT ` + userSelect + ` FROM users WHERE role IN ('moderator','admin') AND last_seen_at > NOW() - INTERVAL '15 minutes'`)
@@ -172,23 +174,18 @@ func (a *API) Stats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) Online(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.DB.Query(`SELECT ` + userSelect + ` FROM users WHERE last_seen_at > NOW() - INTERVAL '5 minutes' ORDER BY last_seen_at DESC`)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "query failed")
-		return
-	}
-	defer rows.Close()
-	members := []models.UserPublic{}
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err == nil {
-			members = append(members, u)
-		}
+	var totalMembers int
+	_ = a.DB.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&totalMembers)
+	memberOnline, guestOnline := simulatedPresence(totalMembers, time.Now())
+	realGuests := a.Guests.Count()
+	if realGuests > guestOnline {
+		guestOnline = realGuests
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"members": members,
-		"guests":  a.Guests.Count(),
-		"total":   len(members) + a.Guests.Count(),
+		"members":     []models.UserPublic{},
+		"guests":      guestOnline,
+		"total":       memberOnline + guestOnline,
+		"memberCount": memberOnline,
 	})
 }
 

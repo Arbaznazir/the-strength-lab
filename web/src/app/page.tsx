@@ -67,7 +67,7 @@ export default function HomePage() {
   return (
     <div>
       {/* First viewport: brand + one line + CTA + full-bleed image */}
-      <section className="relative isolate min-h-[100svh] overflow-hidden bg-[#0a0c0b] text-[#f2eee6]">
+      <section className="relative isolate min-h-[80svh] overflow-hidden bg-[#0a0c0b] text-[#f2eee6] sm:min-h-[100svh]">
         <div className="absolute inset-0">
           <Image
             src={HERO_IMAGE}
@@ -75,13 +75,13 @@ export default function HomePage() {
             fill
             priority
             sizes="100vw"
-            className="hero-kenburns object-cover object-[62%_45%] opacity-65 sm:object-[58%_42%] md:object-[center_40%]"
+            className="hero-kenburns object-cover object-[58%_32%] opacity-75 sm:object-[58%_42%] md:object-[center_40%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0a0c0b] via-[#0a0c0b]/78 to-[#0a0c0b]/25" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c0b] via-transparent to-[#0a0c0b]/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0a0c0b] via-[#0a0c0b]/70 to-[#0a0c0b]/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c0b] via-[#0a0c0b]/5 to-[#0a0c0b]/20 sm:via-transparent sm:to-[#0a0c0b]/40" />
         </div>
 
-        <div className="container-lab relative flex min-h-[100svh] flex-col justify-end pb-16 pt-28 sm:pb-20 sm:pt-32">
+        <div className="container-lab relative flex min-h-[80svh] flex-col justify-center pb-12 pt-14 sm:min-h-[100svh] sm:justify-end sm:pb-20 sm:pt-32">
           <p
             className="kicker anim-rise text-[color-mix(in_oklab,#d4ff3a_85%,white)]"
             style={{ animationDelay: "0.05s" }}

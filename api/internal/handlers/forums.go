@@ -33,6 +33,9 @@ func (a *API) ListForumTree(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "scan failed")
 			return
 		}
+		if c.Slug == "challenges" {
+			continue
+		}
 		c.Forums = []models.Forum{}
 		catIndex[c.ID] = len(cats)
 		cats = append(cats, c)
@@ -69,6 +72,9 @@ func (a *API) ListForumTree(w http.ResponseWriter, r *http.Request) {
 		); err != nil {
 			writeError(w, http.StatusInternalServerError, "scan failed")
 			return
+		}
+		if f.Slug == "weekly-challenges" || f.Slug == "raffles" {
+			continue
 		}
 		f.LastPostAt = nullTimePtr(lastPost)
 		f.LastThreadID = nullStringPtr(lastThreadID)

@@ -26,22 +26,34 @@ export function Sidebar() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    const loadTrending = async () => {
       try {
-        const [t, s] = await Promise.all([
-          apiFetch<{ trending: Thread[] }>("/trending", { auth: false }),
-          apiFetch<StatsPayload>("/stats", { auth: false }),
-        ]);
-        if (!cancelled) {
-          setTrending(t.trending);
-          setStats(s);
-        }
+        const t = await apiFetch<{ trending: Thread[] }>("/trending", {
+          auth: false,
+        });
+        if (!cancelled) setTrending(t.trending);
       } catch {
         /* optional */
       }
-    })();
+    };
+
+    const loadStats = async () => {
+      try {
+        const s = await apiFetch<StatsPayload>("/stats", { auth: false });
+        if (!cancelled) setStats(s);
+      } catch {
+        /* optional */
+      }
+    };
+
+    loadTrending();
+    loadStats();
+    const onlineTimer = setInterval(loadStats, 30_000);
+
     return () => {
       cancelled = true;
+      clearInterval(onlineTimer);
     };
   }, []);
 
@@ -108,12 +120,6 @@ export function Sidebar() {
             <p className="mt-1 text-xs text-[var(--muted)]">
               {stats.online.members} members · {stats.online.guests} guests
             </p>
-            <Link
-              href="/online"
-              className="mt-3 inline-block text-xs font-semibold text-[var(--accent)] hover:underline"
-            >
-              Who&apos;s here →
-            </Link>
           </SideBlock>
 
           <SideBlock title="Staff">

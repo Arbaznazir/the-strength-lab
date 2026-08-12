@@ -318,10 +318,6 @@ func ensureCategories(db *sql.DB) (map[string]string, bool, error) {
 			{"TRT & Hormone Health", "hormone-health", "Evidence-first hormone discussion."},
 			{"Longevity & Wellness", "longevity", "Stay strong for decades, not weeks."},
 		}},
-		{"Challenges & Raffles", "challenges", "Weekly challenges, giveaways, and lab events.", []forumDef{
-			{"Weekly Challenges", "weekly-challenges", "Earn bragging rights and lab rewards."},
-			{"Raffles & Giveaways", "raffles", "Enter, follow the rules, test your luck."},
-		}},
 	}
 
 	for i, c := range cats {
@@ -352,8 +348,6 @@ func seedStarterThreads(db *sql.DB, forumIDs map[string]string, adminID, modID, 
 		{"technique", modID, "Bench cues that fixed my stick point", "Leg drive first, then bar path. Film your set and critique each other.", false},
 		{"powerlifting-training", lifterID, "Plateau on the big 3 — what broke yours?", "Everything stalled for 8 weeks. Changing frequency helped more than adding accessories.", false},
 		{"nutrition", modID, "Carbs around heavy sessions", "Pre-lift carbs make my squats less ugly. What’s your timing?", false},
-		{"weekly-challenges", adminID, "Lab Challenge: 5x5 squat PR week", "Post your working weight and a short video. Winner gets bragging rights + merch credit.", true},
-		{"raffles", adminID, "Weekly Lab Raffle — enter now", "Reply once to enter. One entry per member. Drawing Friday.", false},
 		{"bloodwork", lifterID, "First full panel results — what should I watch?", "Sharing markers (no source talk). Curious what experienced lifters track quarterly.", false},
 		{"general", modID, "Morning vs night training — settle this", "I pull better at night. Coach says mornings build discipline. Fight it out.", false},
 	}
