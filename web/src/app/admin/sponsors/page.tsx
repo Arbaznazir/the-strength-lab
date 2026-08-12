@@ -206,6 +206,13 @@ export default function AdminSponsorsPage() {
   }
 
   async function uploadBanner(file: File) {
+    const maxBytes = 1 * 1024 * 1024; // 1MB
+    if (file.size > maxBytes) {
+      clearLocalPreview();
+      setForm((f) => ({ ...f, imageUrl: "" }));
+      setError("Banner file must be 1MB or smaller");
+      return;
+    }
     clearLocalPreview();
     const blobUrl = URL.createObjectURL(file);
     setLocalPreview(blobUrl);
@@ -214,7 +221,7 @@ export default function AdminSponsorsPage() {
     setError("");
     setForm((f) => ({ ...f, imageUrl: "" }));
     try {
-      const res = await apiUpload(file, "attachment");
+      const res = await apiUpload(file, "sponsor");
       if (!res?.url) throw new Error("Upload returned no URL");
       setForm((f) => ({ ...f, imageUrl: res.url }));
       // Keep blob preview until list reload — server URL may need Next restart for rewrite
@@ -306,7 +313,7 @@ export default function AdminSponsorsPage() {
           </label>
           <div className="space-y-2 text-sm sm:col-span-2">
             <span className="text-[10px] uppercase text-[var(--muted)]">
-              Banner file (GIF / PNG / JPEG / WebP / MP4) — required
+              Banner file (GIF / PNG / JPEG / WebP / MP4) — required · max 1MB
             </span>
             <div className="flex flex-wrap items-center gap-3">
               <label className="btn-primary relative inline-flex cursor-pointer !px-4 !py-2 text-sm">

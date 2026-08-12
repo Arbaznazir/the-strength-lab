@@ -70,7 +70,8 @@ func main() {
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.SecurityHeaders)
-	r.Use(middleware.MaxBody(2 << 20))
+	// Allow image/video banner uploads (handler still enforces its own 8MB cap)
+	r.Use(middleware.MaxBody(10 << 20))
 	r.Use(middleware.RateLimit(globalRL))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
@@ -113,13 +114,14 @@ func main() {
 		r.Get("/members/{username}/profile-posts", api.ListProfilePosts)
 		r.Get("/chat", api.ListChat)
 		r.Get("/trusted-stores", api.ListTrustedStores)
+		r.Get("/sponsor-banners", api.ListSponsorBanners)
 		r.Get("/profile-tags", api.ListProfileTags)
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthRequired(cfg.JWTSecret))
 			r.Get("/me", api.Me)
 			r.With(middleware.RateLimit(writeRL)).Patch("/me", api.UpdateProfile)
-			r.With(middleware.RateLimit(uploadRL)).Post("/uploads", api.Upload)
+			r.With(middleware.MaxBody(10<<20), middleware.RateLimit(uploadRL)).Post("/uploads", api.Upload)
 			r.With(middleware.RateLimit(writeRL)).Post("/forums/{slug}/threads", api.CreateThread)
 			r.With(middleware.RateLimit(writeRL)).Post("/threads/{slug}/replies", api.ReplyThread)
 			r.Post("/threads/{slug}/watch", api.WatchThread)
@@ -163,6 +165,15 @@ func main() {
 				r.With(middleware.AdminRequired).Post("/admin/stores", api.CreateTrustedStore)
 				r.With(middleware.AdminRequired).Patch("/admin/stores/{id}", api.PatchTrustedStore)
 				r.With(middleware.AdminRequired).Delete("/admin/stores/{id}", api.DeleteTrustedStore)
+				r.Get("/admin/sponsors", func(w http.ResponseWriter, r *http.Request) {
+					q := r.URL.Query()
+					q.Set("all", "1")
+					r.URL.RawQuery = q.Encode()
+					api.ListSponsorBanners(w, r)
+				})
+				r.With(middleware.AdminRequired).Post("/admin/sponsors", api.CreateSponsorBanner)
+				r.With(middleware.AdminRequired).Patch("/admin/sponsors/{id}", api.PatchSponsorBanner)
+				r.With(middleware.AdminRequired).Delete("/admin/sponsors/{id}", api.DeleteSponsorBanner)
 			})
 		})
 	})

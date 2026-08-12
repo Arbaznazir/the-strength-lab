@@ -197,6 +197,8 @@ export async function messagesWsUrl(token?: string | null): Promise<string> {
 export function mediaURL(path?: string | null): string {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  // Same-origin: Next public assets + proxied API uploads (/uploads rewrite)
+  if (path.startsWith("/sponsors/") || path.startsWith("/uploads/")) return path;
   const base = getCachedApiBase();
   return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 }
@@ -214,7 +216,7 @@ export function safeNextPath(raw: string | null | undefined, fallback = "/"): st
 
 export async function apiUpload(
   file: File,
-  purpose?: "avatar" | "banner" | "attachment",
+  purpose?: "avatar" | "banner" | "attachment" | "sponsor",
 ): Promise<{
   id: string;
   url: string;

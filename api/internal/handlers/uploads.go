@@ -15,13 +15,25 @@ import (
 )
 
 var allowedImageMIME = map[string]string{
-	"image/jpeg": ".jpg",
-	"image/png":  ".png",
-	"image/gif":  ".gif",
-	"image/webp": ".webp",
+	"image/jpeg":      ".jpg",
+	"image/png":       ".png",
+	"image/gif":       ".gif",
+	"image/webp":      ".webp",
+	"video/mp4":       ".mp4",
+	"application/mp4": ".mp4",
 }
 
-const maxUploadBytes = 8 << 20 // 8MB
+var allowedUploadExt = map[string]string{
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
+	".png":  "image/png",
+	".gif":  "image/gif",
+	".webp": "image/webp",
+	".mp4":  "video/mp4",
+}
+
+const maxUploadBytes = 8 << 20       // 8MB — avatars / attachments
+const maxSponsorUploadBytes = 1 << 20 // 1MB — homepage sponsor banners
 
 func (a *API) ensureUploadDir() error {
 	if a.UploadDir == "" {
@@ -37,10 +49,18 @@ func (a *API) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes+512)
-	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadBytes)+512)
+	if err := r.ParseMultipartForm(int64(maxUploadBytes)); err != nil {
 		writeError(w, http.StatusBadRequest, "file too large (max 8MB)")
 		return
+	}
+
+	purpose := r.FormValue("purpose") // avatar | banner | attachment | sponsor
+	maxBytes := int64(maxUploadBytes)
+	maxLabel := "8MB"
+	if purpose == "sponsor" {
+		maxBytes = int64(maxSponsorUploadBytes)
+		maxLabel = "1MB"
 	}
 
 	file, header, err := r.FormFile("file")
@@ -50,6 +70,10 @@ func (a *API) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	if header.Size > 0 && header.Size > maxBytes {
+		writeError(w, http.StatusBadRequest, "file too large (max "+maxLabel+")")
+		return
+	}
 	mime := ""
 	buf := make([]byte, 512)
 	n, _ := file.Read(buf)
@@ -59,14 +83,27 @@ func (a *API) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	ext, ok := allowedImageMIME[mime]
 	if !ok {
-		// fallback to declared type only if sniff was inconclusive
 		declared := header.Header.Get("Content-Type")
 		ext, ok = allowedImageMIME[declared]
+		if ok {
+			mime = declared
+		} else {
+			// WhatsApp / some browsers send MP4 as octet-stream — allow by extension
+			nameExt := strings.ToLower(filepath.Ext(header.Filename))
+			if nameExt == ".gif" && n >= 12 && string(buf[4:8]) == "ftyp" {
+				// Misnamed MP4 with .gif extension
+				ext, mime, ok = ".mp4", "video/mp4", true
+			} else if m, eok := allowedUploadExt[nameExt]; eok {
+				ext, mime, ok = nameExt, m, true
+				if nameExt == ".jpeg" {
+					ext = ".jpg"
+				}
+			}
+		}
 		if !ok {
-			writeError(w, http.StatusBadRequest, "only jpeg, png, gif, webp allowed")
+			writeError(w, http.StatusBadRequest, "only jpeg, png, gif, webp, mp4 allowed")
 			return
 		}
-		mime = declared
 	}
 	_ = mime
 
@@ -86,13 +123,17 @@ func (a *API) Upload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "write failed")
 		return
 	}
+	if written > maxBytes {
+		_ = os.Remove(destPath)
+		writeError(w, http.StatusBadRequest, "file too large (max "+maxLabel+")")
+		return
+	}
 
 	filename := filepath.Base(header.Filename)
 	if filename == "." || filename == "/" || filename == "" {
 		filename = "image" + ext
 	}
 
-	purpose := r.FormValue("purpose") // avatar | banner | attachment
 	url := "/uploads/" + stored
 
 	if purpose == "avatar" || purpose == "banner" {

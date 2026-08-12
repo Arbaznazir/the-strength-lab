@@ -19,7 +19,8 @@ const securityHeaders = [
       "frame-ancestors 'none'",
       "object-src 'none'",
       "form-action 'self'",
-      "img-src 'self' data: blob: https:",
+      "img-src 'self' data: blob: https: http:",
+      "media-src 'self' data: blob: https: http:",
       "font-src 'self' data: https://fonts.gstatic.com",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -46,6 +47,18 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
       },
     ],
+  },
+  async rewrites() {
+    const api =
+      process.env.API_INTERNAL_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:8080";
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: `${api.replace(/\/$/, "")}/uploads/:path*`,
+      },
+    ];
   },
   async headers() {
     return [

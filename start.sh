@@ -83,7 +83,7 @@ load_env() {
       fi
     done < "$WEB_DIR/.env"
   fi
-  DATABASE_URL="${DATABASE_URL:-postgres://strengthlab:strengthlab@127.0.0.1:5432/strengthlab?sslmode=disable}"
+  DATABASE_URL="${DATABASE_URL:-postgres://strengthlab:strengthlab@127.0.0.1:5433/strengthlab?sslmode=disable}"
   API_ADDR="${API_ADDR:-:$API_PORT}"
   JWT_SECRET="${JWT_SECRET:-change-me-in-production-use-long-random-string}"
   CORS_ORIGIN="${CORS_ORIGIN:-http://localhost:3000}"
@@ -199,17 +199,35 @@ ensure_db() {
 
   c_warn "Database not reachable — trying to start it"
 
+  # Prefer host port 5433 so we don't fight a system Postgres on 5432
+  local compose_port="$DB_PORT"
+  if [[ "$compose_port" == "5432" ]]; then
+    if ss -ltn 2>/dev/null | grep -qE ':5432\s' || ss -ltn 2>/dev/null | grep -q ':5432$'; then
+      c_warn "Host port 5432 is already in use — using $LOCAL_PG_PORT for project Postgres"
+      compose_port="$LOCAL_PG_PORT"
+      DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:${compose_port}/${DB_NAME}?sslmode=disable"
+      export DATABASE_URL
+      parse_database_url "$DATABASE_URL"
+    fi
+  fi
+
   # 1) Docker Compose postgres (if daemon available)
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-    c_info "Starting postgres via docker compose"
-    (cd "$ROOT" && docker compose up -d postgres) || true
-    for _ in $(seq 1 30); do
-      if db_ready "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_NAME" "$DB_PASS"; then
-        c_ok "Database is up (docker)"
-        return 0
-      fi
-      sleep 1
-    done
+    c_info "Starting postgres via docker compose (host port ${compose_port})"
+    if (cd "$ROOT" && POSTGRES_PORT="$compose_port" docker compose up -d postgres); then
+      for _ in $(seq 1 30); do
+        if db_ready "$DB_HOST" "$compose_port" "$DB_USER" "$DB_NAME" "$DB_PASS"; then
+          DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:${compose_port}/${DB_NAME}?sslmode=disable"
+          export DATABASE_URL
+          c_ok "Database is up (docker) → $DATABASE_URL"
+          return 0
+        fi
+        sleep 1
+      done
+      c_warn "Docker postgres started but not ready yet — trying fallbacks"
+    else
+      c_warn "Docker compose postgres failed (port conflict?) — trying fallbacks"
+    fi
   else
     c_warn "Docker unavailable — skipping compose postgres"
   fi
@@ -219,7 +237,8 @@ ensure_db() {
     return 0
   fi
 
-  # 3) Last try: original URL again (maybe system postgres came up)
+  # 3) Last try: current DATABASE_URL again
+  parse_database_url "$DATABASE_URL"
   if db_ready "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_NAME" "$DB_PASS"; then
     c_ok "Database is up"
     return 0
@@ -238,6 +257,28 @@ build_api() {
   c_info "Building API..."
   (cd "$API_DIR" && go build -o bin/server ./cmd/server)
   c_ok "API binary ready"
+}
+
+# Resolve node/npm even when child shells skip .bashrc (nvm lives there).
+resolve_node_path() {
+  local nvm_dir="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "$nvm_dir/nvm.sh" ]]; then
+    # shellcheck disable=SC1090
+    . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
+  fi
+  if command -v npm >/dev/null 2>&1; then
+    NODE_BIN_DIR="$(dirname "$(command -v npm)")"
+    export PATH="$NODE_BIN_DIR:$PATH"
+    return 0
+  fi
+  local latest
+  latest="$(ls -1d "$nvm_dir"/versions/node/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+  if [[ -n "$latest" && -x "$latest/npm" ]]; then
+    NODE_BIN_DIR="$latest"
+    export PATH="$NODE_BIN_DIR:$PATH"
+    return 0
+  fi
+  return 1
 }
 
 open_terminal() {
@@ -319,6 +360,12 @@ main() {
   ensure_db
   build_api
 
+  if ! resolve_node_path; then
+    c_err "npm/node not found. Install Node (nvm) or ensure npm is on PATH."
+    exit 1
+  fi
+  c_ok "Using npm from $NODE_BIN_DIR"
+
   local api_cmd web_cmd
   api_cmd="cd $(printf '%q' "$API_DIR") && \
 export PATH=/snap/go/current/bin:\$PATH && \
@@ -331,10 +378,12 @@ export REDIS_URL=$(printf '%q' "$REDIS_URL") && \
 echo 'API → http://localhost:${API_PORT}' && \
 exec ./bin/server"
 
-  web_cmd="cd $(printf '%q' "$WEB_DIR") && \
+  web_cmd="export PATH=$(printf '%q' "$NODE_BIN_DIR"):\$PATH && \
+cd $(printf '%q' "$WEB_DIR") && \
 export NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080} && \
 export NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8080} && \
 echo 'Web → http://localhost:${WEB_PORT}' && \
+command -v npm >/dev/null || { echo 'npm still not found'; exit 1; } && \
 exec npm run dev -- --port ${WEB_PORT}"
 
   c_info "Opening terminal 1 — backend (API)"

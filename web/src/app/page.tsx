@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowDownRight } from "lucide-react";
 import { apiFetch, getCachedApiBase } from "@/lib/api";
 import type { Category } from "@/lib/types";
-import { ForumList } from "@/components/ForumList";
+import {
+  ForumList,
+  mapSponsorsToForums,
+  type SponsorBanner,
+} from "@/components/ForumList";
 import { Sidebar } from "@/components/Sidebar";
 import { TrustedStoresBoard } from "@/components/TrustedStores";
 import { SocialLinks } from "@/components/SocialLinks";
@@ -18,6 +22,7 @@ const HERO_IMAGE = "/images/hero-gym-headphones.jpg";
 export default function HomePage() {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [sponsors, setSponsors] = useState<SponsorBanner[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -25,10 +30,16 @@ export default function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await apiFetch<{ categories: Category[] }>("/forums", {
-          auth: false,
-        });
-        if (!cancelled) setCategories(data.categories);
+        const [forumData, sponsorData] = await Promise.all([
+          apiFetch<{ categories: Category[] }>("/forums", { auth: false }),
+          apiFetch<{ banners: SponsorBanner[] }>("/sponsor-banners", {
+            auth: false,
+          }).catch(() => ({ banners: [] as SponsorBanner[] })),
+        ]);
+        if (!cancelled) {
+          setCategories(forumData.categories);
+          setSponsors(sponsorData.banners ?? []);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load forums");
@@ -47,6 +58,11 @@ export default function HomePage() {
   const tailCategories = community
     ? categories.filter((c) => c.slug !== "community")
     : categories.slice(1);
+
+  const sponsorsByForumId = useMemo(() => {
+    const forums = categories.flatMap((c) => c.forums ?? []);
+    return mapSponsorsToForums(forums, sponsors);
+  }, [categories, sponsors]);
 
   return (
     <div>
@@ -158,11 +174,17 @@ export default function HomePage() {
               ) : (
                 <>
                   {leadCategory ? (
-                    <ForumList categories={[leadCategory]} />
+                    <ForumList
+                      categories={[leadCategory]}
+                      sponsorsByForumId={sponsorsByForumId}
+                    />
                   ) : null}
                   <TrustedStoresBoard />
                   {tailCategories.length ? (
-                    <ForumList categories={tailCategories} />
+                    <ForumList
+                      categories={tailCategories}
+                      sponsorsByForumId={sponsorsByForumId}
+                    />
                   ) : null}
                 </>
               )}
