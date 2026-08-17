@@ -12,6 +12,8 @@ export type SponsorBanner = {
   imageUrl: string;
   linkUrl: string;
   forumId?: string | null;
+  threadSlug?: string;
+  threadTitle?: string;
   sortOrder: number;
   isActive?: boolean;
 };
@@ -115,7 +117,7 @@ function isVideoBanner(url: string) {
   return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov");
 }
 
-function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
+export function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
   const src = mediaURL(banner.imageUrl) || banner.imageUrl;
   const href = banner.linkUrl?.trim() || undefined;
   const media = isVideoBanner(banner.imageUrl) ? (
@@ -218,6 +220,18 @@ function ForumRow({
       {sponsor ? (
         <div className="w-full min-w-0">
           <SponsorBannerMedia banner={sponsor} />
+          {sponsor.threadSlug ? (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Official post:{" "}
+              <Link
+                href={`/forums/${forum.slug}`}
+                className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {sponsor.threadTitle || sponsor.name}
+              </Link>
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -32,8 +32,9 @@ type TrustedStore struct {
 	IsActive    bool    `json:"isActive"`
 	ThreadCount int     `json:"threadCount"`
 	PostCount   int     `json:"postCount"`
-	LastPostTitle string `json:"lastPostTitle,omitempty"`
+	LastPostTitle string  `json:"lastPostTitle,omitempty"`
 	LastPostAt    *string `json:"lastPostAt,omitempty"`
+	ThreadSlug    string  `json:"threadSlug,omitempty"`
 }
 
 var tagSlugRe = regexp.MustCompile(`^[a-z][a-z0-9_-]{1,23}$`)
@@ -263,10 +264,12 @@ func (a *API) ListTrustedStores(w http.ResponseWriter, r *http.Request) {
 		SELECT s.id::text, s.name, s.slug, s.tag_label, s.tag_color, s.banner_url, s.link_url, s.description,
 		       s.forum_id::text, COALESCE(f.slug,''), s.sort_order, s.is_active,
 		       COALESCE(f.thread_count, 0), COALESCE(f.post_count, 0),
-		       COALESCE((SELECT t.title FROM threads t WHERE t.forum_id=s.forum_id ORDER BY t.last_post_at DESC NULLS LAST LIMIT 1), ''),
-		       f.last_post_at
+		       COALESCE(th.title, COALESCE((SELECT t.title FROM threads t WHERE t.forum_id=s.forum_id ORDER BY t.last_post_at DESC NULLS LAST LIMIT 1), '')),
+		       COALESCE(th.last_post_at, f.last_post_at),
+		       COALESCE(th.slug,'')
 		FROM trusted_stores s
 		LEFT JOIN forums f ON f.id = s.forum_id
+		LEFT JOIN threads th ON th.id = s.thread_id
 	`
 	if !adminView {
 		q += ` WHERE s.is_active = true `
@@ -289,7 +292,7 @@ func (a *API) ListTrustedStores(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Slug, &s.TagLabel, &s.TagColor, &s.BannerURL, &s.LinkURL, &s.Description,
 			&forumID, &s.ForumSlug, &s.SortOrder, &s.IsActive,
-			&s.ThreadCount, &s.PostCount, &lastTitle, &lastAt,
+			&s.ThreadCount, &s.PostCount, &lastTitle, &lastAt, &s.ThreadSlug,
 		); err != nil {
 			continue
 		}

@@ -1,6 +1,11 @@
 package handlers
 
-import "time"
+import (
+	"sort"
+	"time"
+
+	"github.com/thestrengthlab/api/internal/models"
+)
 
 // simulatedPresence returns member and guest counts that vary by time of day
 // so the community looks active without relying on real last_seen tracking.
@@ -43,4 +48,70 @@ func simulatedPresence(totalMembers int, now time.Time) (members, guests int) {
 		guests = 12 + int(tick%28)
 	}
 	return members, guests
+}
+
+// simulatedStaffOnline picks a rotating subset of staff so the sidebar is never
+// stuck on "No staff online". Admins sit in ~20 minute on/off windows; mods
+// cycle on a slower cadence so someone is usually visible.
+func simulatedStaffOnline(all []models.UserPublic, now time.Time) []models.UserPublic {
+	if len(all) == 0 {
+		return all
+	}
+
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].Role != all[j].Role {
+			return all[i].Role < all[j].Role
+		}
+		return all[i].Username < all[j].Username
+	})
+
+	var admins, mods []models.UserPublic
+	for _, u := range all {
+		if u.Role == "admin" {
+			admins = append(admins, u)
+		} else {
+			mods = append(mods, u)
+		}
+	}
+
+	out := make([]models.UserPublic, 0, 3)
+	seen := map[string]struct{}{}
+	add := func(u models.UserPublic) {
+		if _, ok := seen[u.ID]; ok {
+			return
+		}
+		seen[u.ID] = struct{}{}
+		out = append(out, u)
+	}
+
+	// 30-minute cycle: ~20 min with two staff (admin + mod), ~10 min with one.
+	cycle := now.Unix() % (30 * 60)
+	twoOn := cycle < 20*60
+	modSlot := now.Unix() / (8 * 60)
+
+	if twoOn {
+		if len(admins) > 0 {
+			add(admins[int(now.Unix()/(20*60))%len(admins)])
+		}
+		if len(mods) > 0 {
+			add(mods[int(modSlot)%len(mods)])
+		}
+		if len(out) < 2 && len(all) >= 2 {
+			for _, u := range all {
+				if len(out) >= 2 {
+					break
+				}
+				add(u)
+			}
+		}
+	} else if len(mods) > 0 {
+		add(mods[int(modSlot)%len(mods)])
+	} else if len(admins) > 0 {
+		add(admins[0])
+	}
+
+	if len(out) == 0 {
+		add(all[int(now.Unix()/30)%len(all)])
+	}
+	return out
 }

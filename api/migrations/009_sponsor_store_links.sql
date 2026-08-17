@@ -32,10 +32,3 @@ SET name = 'DMK Labs USA',
     link_url = 'https://dmklabsusa.com/',
     description = 'Quality raw materials and finished products.'
 WHERE sort_order = 3;
-
-UPDATE trusted_stores
-SET name = 'Your Muscle Shop',
-    slug = 'your-muscle-shop',
-    link_url = 'https://www.yourmuscleshop.org/',
-    description = 'Trusted supplier for serious lifters.'
-WHERE sort_order = 4;

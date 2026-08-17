@@ -154,16 +154,34 @@ func (a *API) Stats(w http.ResponseWriter, r *http.Request) {
 	}
 	online := models.OnlineStats{Members: memberOnline, Guests: guestOnline, Total: memberOnline + guestOnline}
 
-	staff := []models.UserPublic{}
-	rows, err := a.DB.Query(`SELECT ` + userSelect + ` FROM users WHERE role IN ('moderator','admin') AND last_seen_at > NOW() - INTERVAL '15 minutes'`)
+	staffPool := []models.UserPublic{}
+	staffRows, err := a.DB.Query(`SELECT ` + userSelect + ` FROM users WHERE role IN ('moderator','admin') ORDER BY role DESC, username`)
 	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			u, err := scanUser(rows)
-			if err == nil {
-				staff = append(staff, u)
+		for staffRows.Next() {
+			u, scanErr := scanUser(staffRows)
+			if scanErr == nil {
+				staffPool = append(staffPool, u)
 			}
 		}
+		staffRows.Close()
+	}
+	staff := simulatedStaffOnline(staffPool, time.Now())
+	// Real last-seen staff always appear, even outside the rotation
+	realStaffRows, realErr := a.DB.Query(`SELECT ` + userSelect + ` FROM users WHERE role IN ('moderator','admin') AND last_seen_at > NOW() - INTERVAL '15 minutes'`)
+	if realErr == nil {
+		have := map[string]struct{}{}
+		for _, u := range staff {
+			have[u.ID] = struct{}{}
+		}
+		for realStaffRows.Next() {
+			u, scanErr := scanUser(realStaffRows)
+			if scanErr == nil {
+				if _, ok := have[u.ID]; !ok {
+					staff = append(staff, u)
+				}
+			}
+		}
+		realStaffRows.Close()
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{

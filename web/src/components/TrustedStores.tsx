@@ -20,6 +20,7 @@ export type TrustedStore = {
   postCount: number;
   lastPostTitle?: string;
   lastPostAt?: string;
+  threadSlug?: string;
 };
 
 export function TrustedStoresBoard() {
@@ -119,8 +120,17 @@ export function TrustedStoresBoard() {
               </p>
               {s.lastPostTitle ? (
                 <p className="mt-1 truncate text-sm text-[var(--muted)]">
-                  Last post:{" "}
-                  <span className="text-[var(--fg)]">{s.lastPostTitle}</span>
+                  Official post:{" "}
+                  {s.threadSlug ? (
+                    <Link
+                      href={`/threads/${s.threadSlug}`}
+                      className="text-[var(--fg)] hover:text-[var(--accent)]"
+                    >
+                      {s.lastPostTitle}
+                    </Link>
+                  ) : (
+                    <span className="text-[var(--fg)]">{s.lastPostTitle}</span>
+                  )}
                   {s.lastPostAt ? ` · ${relativeTime(s.lastPostAt)}` : ""}
                 </p>
               ) : null}

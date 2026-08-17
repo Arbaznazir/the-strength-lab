@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth";
 import { warmRuntimeConfig } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Avatar } from "./Avatar";
+import { ContactUsButton } from "./ContactUsButton";
 import { NewPostButton } from "./NewPostButton";
 import { SocialLinks } from "./SocialLinks";
 
@@ -159,6 +160,14 @@ export function Shell({ children }: { children: ReactNode }) {
               variant="header"
               className={clsx("mr-0.5 hidden lg:flex", isHome && "text-white/60")}
             />
+            <div className="mr-1 hidden lg:block">
+              <ContactUsButton
+                compact
+                className={clsx(
+                  isHome && "text-white/80 hover:text-[var(--accent)]",
+                )}
+              />
+            </div>
             <div className="mr-1 hidden md:block">
               <NewPostButton
                 compact
@@ -290,6 +299,9 @@ export function Shell({ children }: { children: ReactNode }) {
               <div className="px-2 py-2">
                 <NewPostButton className="w-full justify-center" />
               </div>
+              <div className="px-2 py-2">
+                <ContactUsButton className="w-full justify-center" />
+              </div>
               {user ? (
                 <>
                   <Link href="/messages" className="px-2 py-3 text-sm font-medium text-[var(--fg)]">
@@ -370,6 +382,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </p>
           </div>
           <div className="flex flex-col gap-4 sm:items-end">
+            <ContactUsButton />
             <SocialLinks variant="footer" />
             <div className="flex flex-wrap gap-4 text-xs text-[var(--muted)]">
             <Link href="/whats-new" className="hover:text-[var(--accent)]">What&apos;s new</Link>

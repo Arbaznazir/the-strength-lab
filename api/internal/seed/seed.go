@@ -61,6 +61,9 @@ func Run(db *sql.DB) error {
 	if err := syncSponsorBannerLinks(db); err != nil {
 		return fmt.Errorf("sponsor banner links: %w", err)
 	}
+	if err := ensureSponsorPosts(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("sponsor posts seed: %w", err)
+	}
 	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
 		return fmt.Errorf("user tags seed: %w", err)
 	}
@@ -179,12 +182,6 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 			banner: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80",
 			link: "https://dmklabsusa.com/", desc: "Quality raw materials and finished products.",
 			forumKey: "nutrition", order: 3,
-		},
-		{
-			name: "Your Muscle Shop", slug: "your-muscle-shop", tag: "Trusted Source", color: "#9bb8ff",
-			banner: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
-			link: "https://www.yourmuscleshop.org/", desc: "Trusted supplier for serious lifters.",
-			forumKey: "recovery", order: 4,
 		},
 	}
 
@@ -410,6 +407,102 @@ func seedStarterThreads(db *sql.DB, forumIDs map[string]string, adminID, modID, 
 			return err
 		}
 	}
+	return nil
+}
+
+func ensureSponsorPosts(db *sql.DB, forumIDs map[string]string, adminID string) error {
+	type spec struct {
+		key, name, forum, title, body, link string
+		bannerName, storeSlug               string
+	}
+	posts := []spec{
+		{
+			key: "steroidify", name: "Steroidify", forum: "supplements",
+			title: "Official Steroidify thread",
+			link:  "https://steroidify.ltd/",
+			body:  "Lab partner thread for Steroidify.\n\nQuestions, sourcing talk that stays within the rules, and promo discussion go here. Shop: https://steroidify.ltd/",
+			bannerName: "Steroidify",
+		},
+		{
+			key: "dragon-pharma", name: "Dragon Pharma Store", forum: "supplements",
+			title: "Official Dragon Pharma Store thread",
+			link:  "https://dragonpharmastore.to/",
+			body:  "Official thread for Dragon Pharma Store — trusted supplier discussion for the lab.\n\nShop: https://dragonpharmastore.to/",
+			bannerName: "Dragon Pharma Store",
+		},
+		{
+			key: "dmk-labs", name: "DMK Labs USA", forum: "supplements",
+			title: "Official DMK Labs USA thread",
+			link:  "https://dmklabsusa.com/",
+			body:  "Official thread for DMK Labs USA.\n\nRaw materials, finished products, and lab questions that stay in-bounds. Shop: https://dmklabsusa.com/",
+			bannerName: "DMK Labs USA", storeSlug: "dmk-labs-usa",
+		},
+		{
+			key: "anabolic-dragon", name: "Anabolic Dragon", forum: "hormone-health",
+			title: "Official Anabolic Dragon thread",
+			link:  "https://anabolic-dragon.com/dr/",
+			body:  "Official thread for Anabolic Dragon.\n\nShop: https://anabolic-dragon.com/dr/",
+			storeSlug: "anabolic-dragon",
+		},
+		{
+			key: "napsgear", name: "NapsGear", forum: "hormone-health",
+			title: "Official NapsGear thread",
+			link:  "https://www.napsgear.org/",
+			body:  "Official thread for NapsGear.\n\nShop: https://www.napsgear.org/",
+			storeSlug: "napsgear",
+		},
+	}
+
+	for i, p := range posts {
+		fid := forumIDs[p.forum]
+		if fid == "" {
+			_ = db.QueryRow(`SELECT id::text FROM forums WHERE slug=$1`, p.forum).Scan(&fid)
+		}
+		if fid == "" {
+			continue
+		}
+
+		slug := "official-" + p.key
+		var threadID string
+		err := db.QueryRow(`SELECT id::text FROM threads WHERE slug=$1`, slug).Scan(&threadID)
+		if err == sql.ErrNoRows {
+			tid := uuid.New()
+			pid := uuid.New()
+			threadID = tid.String()
+			created := fmt.Sprintf("NOW() - INTERVAL '%d hours'", 6+i*3)
+			if _, err := db.Exec(`
+				INSERT INTO threads(id, forum_id, author_id, title, slug, is_pinned, is_featured, reply_count, view_count, last_post_at, last_poster_id, created_at, updated_at)
+				VALUES($1,$2,$3,$4,$5,true,true,0,80,`+created+`,$3,`+created+`,`+created+`)
+			`, tid, fid, adminID, p.title, slug); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO posts(id, thread_id, author_id, body, created_at, updated_at)
+				VALUES($1,$2,$3,$4,`+created+`,`+created+`)
+			`, pid, tid, adminID, p.body); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				UPDATE forums SET thread_count=thread_count+1, post_count=post_count+1 WHERE id=$1
+			`, fid); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+
+		if p.bannerName != "" {
+			if _, err := db.Exec(`UPDATE sponsor_banners SET thread_id=$1 WHERE name=$2`, threadID, p.bannerName); err != nil {
+				return err
+			}
+		}
+		if p.storeSlug != "" {
+			if _, err := db.Exec(`UPDATE trusted_stores SET thread_id=$1 WHERE slug=$2`, threadID, p.storeSlug); err != nil {
+				return err
+			}
+		}
+	}
+	log.Println("sponsor official threads ready")
 	return nil
 }
 

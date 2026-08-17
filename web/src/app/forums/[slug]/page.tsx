@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import type { Attachment, Forum, Thread } from "@/lib/types";
+import type { Attachment, Category, Forum, Thread } from "@/lib/types";
 import {
   ThreadFilters,
   ThreadList,
@@ -16,6 +16,11 @@ import { Sidebar } from "@/components/Sidebar";
 import { Pagination } from "@/components/Pagination";
 import { ImageAttach } from "@/components/ImageAttach";
 import { MentionInput } from "@/components/MentionInput";
+import {
+  mapSponsorsToForums,
+  SponsorBannerMedia,
+  type SponsorBanner,
+} from "@/components/ForumList";
 
 type ForumResponse = {
   forum: Forum;
@@ -46,6 +51,7 @@ export default function ForumPage({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [sponsor, setSponsor] = useState<SponsorBanner | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -75,6 +81,35 @@ export default function ForumPage({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!forum?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [forumData, sponsorData] = await Promise.all([
+          apiFetch<{ categories: Category[] }>("/forums", { auth: false }),
+          apiFetch<{ banners: SponsorBanner[] }>("/sponsor-banners", {
+            auth: false,
+          }).catch(() => ({ banners: [] as SponsorBanner[] })),
+        ]);
+        if (cancelled) return;
+        const allForums = (forumData.categories ?? []).flatMap(
+          (c) => c.forums ?? [],
+        );
+        const mapped = mapSponsorsToForums(
+          allForums,
+          sponsorData.banners ?? [],
+        );
+        setSponsor(mapped[forum.id] ?? null);
+      } catch {
+        if (!cancelled) setSponsor(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [forum?.id]);
 
   async function createThread(e: React.FormEvent) {
     e.preventDefault();
@@ -151,6 +186,23 @@ export default function ForumPage({
           </Link>
         )}
       </div>
+
+      {sponsor ? (
+        <div className="min-w-0">
+          <SponsorBannerMedia banner={sponsor} />
+          {sponsor.threadSlug ? (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Official post:{" "}
+              <Link
+                href={`/threads/${sponsor.threadSlug}`}
+                className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
+              >
+                {sponsor.threadTitle || sponsor.name}
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {showForm && user ? (
         <form

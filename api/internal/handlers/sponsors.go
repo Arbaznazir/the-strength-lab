@@ -11,15 +11,17 @@ import (
 )
 
 type SponsorBanner struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	ImageURL  string  `json:"imageUrl"`
-	LinkURL   string  `json:"linkUrl"`
-	ForumID   *string `json:"forumId,omitempty"`
-	ForumSlug string  `json:"forumSlug,omitempty"`
-	ForumName string  `json:"forumName,omitempty"`
-	SortOrder int     `json:"sortOrder"`
-	IsActive  bool    `json:"isActive"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	ImageURL    string  `json:"imageUrl"`
+	LinkURL     string  `json:"linkUrl"`
+	ForumID     *string `json:"forumId,omitempty"`
+	ForumSlug   string  `json:"forumSlug,omitempty"`
+	ForumName   string  `json:"forumName,omitempty"`
+	ThreadSlug  string  `json:"threadSlug,omitempty"`
+	ThreadTitle string  `json:"threadTitle,omitempty"`
+	SortOrder   int     `json:"sortOrder"`
+	IsActive    bool    `json:"isActive"`
 }
 
 func sanitizeSponsorMediaURL(raw string) string {
@@ -44,9 +46,11 @@ func (a *API) ListSponsorBanners(w http.ResponseWriter, r *http.Request) {
 	q := `
 		SELECT s.id::text, s.name, s.image_url, s.link_url,
 		       s.forum_id::text, COALESCE(f.slug,''), COALESCE(f.name,''),
-		       s.sort_order, s.is_active
+		       s.sort_order, s.is_active,
+		       COALESCE(th.slug,''), COALESCE(th.title,'')
 		FROM sponsor_banners s
 		LEFT JOIN forums f ON f.id = s.forum_id
+		LEFT JOIN threads th ON th.id = s.thread_id
 	`
 	if !adminView {
 		q += ` WHERE s.is_active = true `
@@ -68,6 +72,7 @@ func (a *API) ListSponsorBanners(w http.ResponseWriter, r *http.Request) {
 			&s.ID, &s.Name, &s.ImageURL, &s.LinkURL,
 			&forumID, &s.ForumSlug, &s.ForumName,
 			&s.SortOrder, &s.IsActive,
+			&s.ThreadSlug, &s.ThreadTitle,
 		); err != nil {
 			continue
 		}

@@ -32,6 +32,15 @@ export function getSocialLinks(): SocialLink[] {
     .filter((link): link is SocialLink => link !== null);
 }
 
+export const CONTACT_EMAIL =
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+  "contact@thestrengthlab.com";
+
+export function contactMailto(): string {
+  const subject = encodeURIComponent("The Strength Lab — contact");
+  return `mailto:${CONTACT_EMAIL}?subject=${subject}`;
+}
+
 export function siteURL(): string {
   if (typeof window !== "undefined") {
     return window.location.origin;
