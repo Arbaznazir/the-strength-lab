@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import { mediaURL } from "@/lib/api";
 import type { SponsorBanner } from "./ForumList";
@@ -12,21 +13,53 @@ function isVideoBanner(url: string) {
   return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov");
 }
 
-function featuredSponsors(banners: SponsorBanner[]): SponsorBanner[] {
-  const active = banners.filter((b) => b.isActive !== false && b.imageUrl);
-  const steroidify = active.filter((b) =>
-    b.name.toLowerCase().includes("steroidify"),
+function nameKey(name: string) {
+  return name.trim().toLowerCase();
+}
+
+function uniqueByName(banners: SponsorBanner[]): SponsorBanner[] {
+  const seenName = new Set<string>();
+  const seenImage = new Set<string>();
+  const out: SponsorBanner[] = [];
+  for (const b of banners) {
+    if (b.isActive === false || !b.imageUrl) continue;
+    const key = nameKey(b.name);
+    const image = b.imageUrl.toLowerCase().split("?")[0] ?? "";
+    if (!key || seenName.has(key) || seenImage.has(image)) continue;
+    seenName.add(key);
+    seenImage.add(image);
+    out.push(b);
+  }
+  return out;
+}
+
+function featuredSponsors(
+  banners: SponsorBanner[],
+  extras: SponsorBanner[],
+): SponsorBanner[] {
+  const pool = uniqueByName([...banners, ...extras]);
+  const pick = (needle: string) =>
+    pool.find((b) => nameKey(b.name).includes(needle));
+  const first = pick("steroidify");
+  const second = pick("napsgear") ?? pick("naps gear");
+  const used = new Set(
+    [first, second].filter(Boolean).map((b) => nameKey(b!.name)),
   );
-  const rest = active.filter((b) => !b.name.toLowerCase().includes("steroidify"));
-  return [...steroidify, ...rest].slice(0, 3);
+  const rest = pool.filter((b) => !used.has(nameKey(b.name)));
+  return [first, second, ...rest].filter((b): b is SponsorBanner => Boolean(b)).slice(0, 3);
 }
 
 export function HeroSponsorCarousel({
   banners,
+  extras = [],
 }: {
   banners: SponsorBanner[];
+  extras?: SponsorBanner[];
 }) {
-  const slides = useMemo(() => featuredSponsors(banners), [banners]);
+  const slides = useMemo(
+    () => featuredSponsors(banners, extras),
+    [banners, extras],
+  );
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -81,7 +114,9 @@ export function HeroSponsorCarousel({
       style={{ animationDelay: "0.02s" }}
     >
       <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-white/55">
-        Sponsors
+        <Link href="/sponsors" className="hover:text-white">
+          Sponsors
+        </Link>
       </p>
       {href ? (
         <a

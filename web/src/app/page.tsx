@@ -12,7 +12,7 @@ import {
   type SponsorBanner,
 } from "@/components/ForumList";
 import { Sidebar } from "@/components/Sidebar";
-import { TrustedStoresBoard } from "@/components/TrustedStores";
+import { TrustedStoresBoard, type TrustedStore } from "@/components/TrustedStores";
 import { SocialLinks } from "@/components/SocialLinks";
 import { NewPostButton } from "@/components/NewPostButton";
 import { HeroSponsorCarousel } from "@/components/HeroSponsorCarousel";
@@ -24,6 +24,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [sponsors, setSponsors] = useState<SponsorBanner[]>([]);
+  const [stores, setStores] = useState<TrustedStore[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -31,15 +32,19 @@ export default function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const [forumData, sponsorData] = await Promise.all([
+        const [forumData, sponsorData, storeData] = await Promise.all([
           apiFetch<{ categories: Category[] }>("/forums", { auth: false }),
           apiFetch<{ banners: SponsorBanner[] }>("/sponsor-banners", {
             auth: false,
           }).catch(() => ({ banners: [] as SponsorBanner[] })),
+          apiFetch<{ stores: TrustedStore[] }>("/trusted-stores", {
+            auth: false,
+          }).catch(() => ({ stores: [] as TrustedStore[] })),
         ]);
         if (!cancelled) {
           setCategories(forumData.categories);
           setSponsors(sponsorData.banners ?? []);
+          setStores(storeData.stores ?? []);
         }
       } catch (e) {
         if (!cancelled) {
@@ -53,6 +58,21 @@ export default function HomePage() {
       cancelled = true;
     };
   }, []);
+
+  const heroExtras = useMemo<SponsorBanner[]>(
+    () =>
+      stores
+        .filter((s) => s.bannerUrl)
+        .map((s) => ({
+          id: `store-${s.id}`,
+          name: s.name,
+          imageUrl: s.bannerUrl,
+          linkUrl: s.linkUrl,
+          sortOrder: 0,
+          isActive: true,
+        })),
+    [stores],
+  );
 
   const community = categories.find((c) => c.slug === "community");
   const leadCategory = community ?? categories[0] ?? null;
@@ -84,7 +104,7 @@ export default function HomePage() {
 
         <div className="container-lab relative flex min-h-[80svh] flex-col justify-end gap-6 pb-12 pt-16 sm:min-h-[100svh] sm:gap-8 sm:pb-20 sm:pt-24">
           <div className="self-start">
-            <HeroSponsorCarousel banners={sponsors} />
+            <HeroSponsorCarousel banners={sponsors} extras={heroExtras} />
           </div>
           <div className="min-w-0 max-w-xl">
           <p
@@ -185,7 +205,7 @@ export default function HomePage() {
                       sponsorsByForumId={sponsorsByForumId}
                     />
                   ) : null}
-                  <TrustedStoresBoard />
+                  <TrustedStoresBoard limit={3} />
                   {tailCategories.length ? (
                     <ForumList
                       categories={tailCategories}

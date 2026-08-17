@@ -147,44 +147,90 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 			return err
 		}
 	}
+
+	// Drop duplicate banner files so the hero rotator cannot show the same clip twice.
+	if _, err := db.Exec(`
+		DELETE FROM sponsor_banners a
+		WHERE EXISTS (
+			SELECT 1 FROM sponsor_banners b
+			WHERE b.image_url = a.image_url
+			  AND (
+			    b.sort_order < a.sort_order
+			    OR (b.sort_order = a.sort_order AND b.id::text < a.id::text)
+			  )
+		)
+	`); err != nil {
+		return err
+	}
+
+	var dmk int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sponsor_banners WHERE name ILIKE '%dmk%'`).Scan(&dmk); err != nil {
+		return err
+	}
+	if dmk == 0 {
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, sort_order, is_active)
+			VALUES($1,'DMK Labs USA','/sponsors/dmk-labs.mp4','https://dmklabsusa.com/',3,true)
+		`, id); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
-	var n int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM trusted_stores`).Scan(&n); err != nil {
-		return err
-	}
-	if n > 0 {
-		return nil
-	}
-	log.Println("seeding trusted stores & GH sources…")
-
 	type store struct {
 		name, slug, tag, color, banner, link, desc, forumKey string
 		order                                                int
 	}
+	// Homepage board keeps the first three; /sponsors lists all seven.
 	stores := []store{
 		{
 			name: "Anabolic Dragon", slug: "anabolic-dragon", tag: "Trusted Source", color: "#e85d5d",
 			banner: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80",
-			link: "https://anabolic-dragon.com/dr/", desc: "Pharmaceutical-grade compounds and peptides.",
+			link:   "https://anabolic-dragon.com/dr/", desc: "Pharmaceutical-grade compounds and peptides.",
 			forumKey: "supplements", order: 1,
 		},
 		{
 			name: "NapsGear", slug: "napsgear", tag: "Trusted Source", color: "#7dd3c0",
 			banner: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80",
-			link: "https://www.napsgear.org/", desc: "Established source with worldwide shipping.",
+			link:   "https://www.napsgear.org/", desc: "Established source with worldwide shipping.",
 			forumKey: "hormone-health", order: 2,
 		},
 		{
 			name: "DMK Labs USA", slug: "dmk-labs-usa", tag: "Trusted Source", color: "#f0c14b",
 			banner: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80",
-			link: "https://dmklabsusa.com/", desc: "Quality raw materials and finished products.",
+			link:   "https://dmklabsusa.com/", desc: "Quality raw materials and finished products.",
 			forumKey: "nutrition", order: 3,
+		},
+		{
+			name: "Steroidify", slug: "steroidify", tag: "Trusted Source", color: "#d4ff3a",
+			banner: "/sponsors/steroidify.mp4",
+			link:   "https://steroidify.ltd/", desc: "Community-vetted lab partner with a large member base.",
+			forumKey: "supplements", order: 4,
+		},
+		{
+			name: "Dragon Pharma Store", slug: "dragon-pharma", tag: "Trusted Source", color: "#e85d5d",
+			banner: "/sponsors/dragon-pharma.mp4",
+			link:   "https://dragonpharmastore.to/", desc: "Official Dragon Pharma supplier for the lab.",
+			forumKey: "hormone-health", order: 5,
+		},
+		{
+			name: "Iron Forge Supply", slug: "iron-forge-supply", tag: "Trusted Source", color: "#c4a574",
+			banner: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
+			link:   "", desc: "Training gear and plateload for serious barbell work.",
+			forumKey: "accessories", order: 6,
+		},
+		{
+			name: "Clarity Recovery", slug: "clarity-recovery", tag: "Trusted Source", color: "#9bb8ff",
+			banner: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1200&q=80",
+			link:   "", desc: "Recovery tools and protocols for hard training blocks.",
+			forumKey: "recovery", order: 7,
 		},
 	}
 
+	var added int
 	for _, s := range stores {
 		var forum any
 		if fid, ok := forumIDs[s.forumKey]; ok && fid != "" {
@@ -193,15 +239,20 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 			forum = nil
 		}
 		id := uuid.New()
-		if _, err := db.Exec(`
+		res, err := db.Exec(`
 			INSERT INTO trusted_stores(id, name, slug, tag_label, tag_color, banner_url, link_url, description, forum_id, sort_order, is_active)
 			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)
 			ON CONFLICT (slug) DO NOTHING
-		`, id, s.name, s.slug, s.tag, s.color, s.banner, s.link, s.desc, forum, s.order); err != nil {
+		`, id, s.name, s.slug, s.tag, s.color, s.banner, s.link, s.desc, forum, s.order)
+		if err != nil {
 			return err
 		}
+		n, _ := res.RowsAffected()
+		added += int(n)
 	}
-	log.Println("trusted stores seeded")
+	if added > 0 {
+		log.Printf("trusted stores: added %d partner(s)", added)
+	}
 	return nil
 }
 
@@ -418,38 +469,52 @@ func ensureSponsorPosts(db *sql.DB, forumIDs map[string]string, adminID string) 
 	posts := []spec{
 		{
 			key: "steroidify", name: "Steroidify", forum: "supplements",
-			title: "Official Steroidify thread",
-			link:  "https://steroidify.ltd/",
-			body:  "Lab partner thread for Steroidify.\n\nQuestions, sourcing talk that stays within the rules, and promo discussion go here. Shop: https://steroidify.ltd/",
-			bannerName: "Steroidify",
+			title:      "Official Steroidify thread",
+			link:       "https://steroidify.ltd/",
+			body:       "Lab partner thread for Steroidify.\n\nQuestions, sourcing talk that stays within the rules, and promo discussion go here. Shop: https://steroidify.ltd/",
+			bannerName: "Steroidify", storeSlug: "steroidify",
 		},
 		{
 			key: "dragon-pharma", name: "Dragon Pharma Store", forum: "supplements",
-			title: "Official Dragon Pharma Store thread",
-			link:  "https://dragonpharmastore.to/",
-			body:  "Official thread for Dragon Pharma Store — trusted supplier discussion for the lab.\n\nShop: https://dragonpharmastore.to/",
-			bannerName: "Dragon Pharma Store",
+			title:      "Official Dragon Pharma Store thread",
+			link:       "https://dragonpharmastore.to/",
+			body:       "Official thread for Dragon Pharma Store — trusted supplier discussion for the lab.\n\nShop: https://dragonpharmastore.to/",
+			bannerName: "Dragon Pharma Store", storeSlug: "dragon-pharma",
 		},
 		{
 			key: "dmk-labs", name: "DMK Labs USA", forum: "supplements",
-			title: "Official DMK Labs USA thread",
-			link:  "https://dmklabsusa.com/",
-			body:  "Official thread for DMK Labs USA.\n\nRaw materials, finished products, and lab questions that stay in-bounds. Shop: https://dmklabsusa.com/",
+			title:      "Official DMK Labs USA thread",
+			link:       "https://dmklabsusa.com/",
+			body:       "Official thread for DMK Labs USA.\n\nRaw materials, finished products, and lab questions that stay in-bounds. Shop: https://dmklabsusa.com/",
 			bannerName: "DMK Labs USA", storeSlug: "dmk-labs-usa",
 		},
 		{
 			key: "anabolic-dragon", name: "Anabolic Dragon", forum: "hormone-health",
-			title: "Official Anabolic Dragon thread",
-			link:  "https://anabolic-dragon.com/dr/",
-			body:  "Official thread for Anabolic Dragon.\n\nShop: https://anabolic-dragon.com/dr/",
+			title:     "Official Anabolic Dragon thread",
+			link:      "https://anabolic-dragon.com/dr/",
+			body:      "Official thread for Anabolic Dragon.\n\nShop: https://anabolic-dragon.com/dr/",
 			storeSlug: "anabolic-dragon",
 		},
 		{
 			key: "napsgear", name: "NapsGear", forum: "hormone-health",
-			title: "Official NapsGear thread",
-			link:  "https://www.napsgear.org/",
-			body:  "Official thread for NapsGear.\n\nShop: https://www.napsgear.org/",
+			title:     "Official NapsGear thread",
+			link:      "https://www.napsgear.org/",
+			body:      "Official thread for NapsGear.\n\nShop: https://www.napsgear.org/",
 			storeSlug: "napsgear",
+		},
+		{
+			key: "iron-forge-supply", name: "Iron Forge Supply", forum: "accessories",
+			title:     "Official Iron Forge Supply thread",
+			link:      "",
+			body:      "Official thread for Iron Forge Supply — gear talk for barbell work that stays in-bounds.",
+			storeSlug: "iron-forge-supply",
+		},
+		{
+			key: "clarity-recovery", name: "Clarity Recovery", forum: "recovery",
+			title:     "Official Clarity Recovery thread",
+			link:      "",
+			body:      "Official thread for Clarity Recovery — recovery tools and protocols for hard training blocks.",
+			storeSlug: "clarity-recovery",
 		},
 	}
 

@@ -25,6 +25,7 @@ import { SocialLinks } from "./SocialLinks";
 
 const nav = [
   { href: "/", label: "Forums" },
+  { href: "/sponsors", label: "Sponsors" },
   { href: "/whats-new", label: "What's new" },
   { href: "/members", label: "Members" },
   { href: "/chat", label: "Chat" },
@@ -386,6 +387,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <SocialLinks variant="footer" />
             <div className="flex flex-wrap gap-4 text-xs text-[var(--muted)]">
             <Link href="/whats-new" className="hover:text-[var(--accent)]">What&apos;s new</Link>
+            <Link href="/sponsors" className="hover:text-[var(--accent)]">Sponsors</Link>
             <Link href="/members" className="hover:text-[var(--accent)]">Members</Link>
             <Link href="/chat" className="hover:text-[var(--accent)]">Chat</Link>
             <Link href="/online" className="hover:text-[var(--accent)]">Online</Link>
