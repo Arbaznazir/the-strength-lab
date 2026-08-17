@@ -15,6 +15,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { TrustedStoresBoard } from "@/components/TrustedStores";
 import { SocialLinks } from "@/components/SocialLinks";
 import { NewPostButton } from "@/components/NewPostButton";
+import { HeroSponsorCarousel } from "@/components/HeroSponsorCarousel";
 import { useAuth } from "@/lib/auth";
 
 const HERO_IMAGE = "/images/hero-gym-headphones.jpg";
@@ -81,7 +82,11 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0c0b] via-[#0a0c0b]/5 to-[#0a0c0b]/20 sm:via-transparent sm:to-[#0a0c0b]/40" />
         </div>
 
-        <div className="container-lab relative flex min-h-[80svh] flex-col justify-center pb-12 pt-14 sm:min-h-[100svh] sm:justify-end sm:pb-20 sm:pt-32">
+        <div className="container-lab relative flex min-h-[80svh] flex-col justify-end gap-6 pb-12 pt-16 sm:min-h-[100svh] sm:gap-8 sm:pb-20 sm:pt-24">
+          <div className="self-start">
+            <HeroSponsorCarousel banners={sponsors} />
+          </div>
+          <div className="min-w-0 max-w-xl">
           <p
             className="kicker anim-rise text-[color-mix(in_oklab,#d4ff3a_85%,white)]"
             style={{ animationDelay: "0.05s" }}
@@ -135,6 +140,7 @@ export default function HomePage() {
                 What&apos;s new
               </Link>
             )}
+          </div>
           </div>
         </div>
       </section>

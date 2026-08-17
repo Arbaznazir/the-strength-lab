@@ -160,7 +160,7 @@ export function Shell({ children }: { children: ReactNode }) {
               variant="header"
               className={clsx("mr-0.5 hidden lg:flex", isHome && "text-white/60")}
             />
-            <div className="mr-1 hidden lg:block">
+            <div className="mr-1 hidden sm:block">
               <ContactUsButton
                 compact
                 className={clsx(

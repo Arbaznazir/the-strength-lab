@@ -40,7 +40,7 @@ export function TrustedStoresBoard() {
         <span className="cat-bar" aria-hidden />
         <div className="min-w-0">
           <h2 className="text-base font-semibold tracking-tight break-words sm:text-lg">
-            Trusted stores &amp; GH sources
+            Sponsors
           </h2>
           <p className="mt-0.5 text-sm text-[var(--muted)]">
             Lab-vetted partners — curated by staff.
@@ -156,7 +156,7 @@ export function TrustedStoresSideBlock() {
 
   return (
     <section className="side-panel">
-      <h3 className="kicker mb-4">Trusted stores &amp; GH sources</h3>
+      <h3 className="kicker mb-4">Sponsors</h3>
       <ul className="space-y-4">
         {stores.map((s) => {
           const href =
