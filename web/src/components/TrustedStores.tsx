@@ -29,6 +29,11 @@ function isVideoBanner(url: string) {
   return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov");
 }
 
+export function externalStoreHref(linkUrl?: string) {
+  const url = linkUrl?.trim();
+  return url?.startsWith("http") ? url : undefined;
+}
+
 export function useTrustedStores() {
   const [stores, setStores] = useState<TrustedStore[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -160,18 +165,37 @@ export function SponsorStoreCard({ store: s }: { store: TrustedStore }) {
 export function SponsorStoreBanner({
   store,
   className = "",
+  linkToStore = false,
 }: {
   store: TrustedStore;
   className?: string;
+  /** When true (sponsor hub), banner opens the external store URL. */
+  linkToStore?: boolean;
 }) {
   const banner = mediaURL(store.bannerUrl) || store.bannerUrl;
   if (!banner) return null;
-  return (
+
+  const media = (
     <StoreBanner
       src={banner}
       name={store.name}
       className={className || "w-full"}
     />
+  );
+
+  const href = linkToStore ? externalStoreHref(store.linkUrl) : undefined;
+  if (!href) return media;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer sponsored"
+      className="block"
+      aria-label={`Visit ${store.name} store`}
+    >
+      {media}
+    </a>
   );
 }
 

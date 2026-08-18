@@ -17,6 +17,7 @@ import { Pagination } from "@/components/Pagination";
 import { TagBadge } from "@/components/TagBadge";
 import {
   SponsorStoreBanner,
+  externalStoreHref,
   type TrustedStore,
   useTrustedStores,
 } from "@/components/TrustedStores";
@@ -88,6 +89,8 @@ export default function SponsorHubPage({
     );
   }
 
+  const storeHref = externalStoreHref(store?.linkUrl);
+
   return (
     <div className="container-lab space-y-8 py-8 sm:py-10">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--line)] pb-6">
@@ -104,9 +107,22 @@ export default function SponsorHubPage({
             ) : null}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {store?.name ?? "Sponsor"}
-            </h1>
+            {storeHref ? (
+              <a
+                href={storeHref}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="group inline-flex flex-wrap items-center gap-2"
+              >
+                <h1 className="text-2xl font-semibold tracking-tight transition-colors group-hover:text-[var(--accent)] sm:text-3xl">
+                  {store?.name ?? "Sponsor"}
+                </h1>
+              </a>
+            ) : (
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                {store?.name ?? "Sponsor"}
+              </h1>
+            )}
             {store ? (
               <TagBadge
                 tag={{
@@ -120,9 +136,9 @@ export default function SponsorHubPage({
           {store?.description ? (
             <p className="mt-2 max-w-2xl text-[var(--muted)]">{store.description}</p>
           ) : null}
-          {store?.linkUrl?.startsWith("http") ? (
+          {storeHref ? (
             <a
-              href={store.linkUrl}
+              href={storeHref}
               target="_blank"
               rel="noopener noreferrer sponsored"
               className="mt-3 inline-block text-sm font-medium text-[var(--muted)] hover:text-[var(--accent)]"
@@ -149,7 +165,7 @@ export default function SponsorHubPage({
       </div>
 
       {store?.bannerUrl ? (
-        <SponsorStoreBanner store={store} />
+        <SponsorStoreBanner store={store} linkToStore />
       ) : null}
 
       {store?.threadSlug ? (

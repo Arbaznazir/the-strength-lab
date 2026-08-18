@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Category, Forum } from "@/lib/types";
 import { formatCount, relativeTime } from "@/lib/format";
 import { mediaURL } from "@/lib/api";
+import { sponsorHubPath } from "@/lib/sponsors";
 import { Avatar } from "./Avatar";
 
 export type SponsorBanner = {
@@ -118,9 +119,15 @@ function isVideoBanner(url: string) {
   return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov");
 }
 
+export function sponsorBannerThreadHref(banner: SponsorBanner): string | undefined {
+  if (banner.threadSlug) return `/threads/${banner.threadSlug}`;
+  if (banner.storeSlug) return sponsorHubPath(banner.storeSlug);
+  return undefined;
+}
+
 export function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
   const src = mediaURL(banner.imageUrl) || banner.imageUrl;
-  const href = banner.linkUrl?.trim() || undefined;
+  const href = sponsorBannerThreadHref(banner);
   const media = isVideoBanner(banner.imageUrl) ? (
     <video
       src={src}
@@ -146,15 +153,13 @@ export function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
 
   if (href) {
     return (
-      <a
+      <Link
         href={href}
-        target="_blank"
-        rel="noopener noreferrer sponsored"
         className={shellClass}
-        aria-label={`Visit ${banner.name}`}
+        aria-label={`Open ${banner.name} thread`}
       >
         {media}
-      </a>
+      </Link>
     );
   }
   return <div className={shellClass}>{media}</div>;
