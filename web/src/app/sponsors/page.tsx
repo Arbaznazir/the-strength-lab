@@ -12,8 +12,8 @@ export default function SponsorsPage() {
           Sponsors
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Lab-vetted shops and partners. Names and banners open the store;
-          official threads stay on the forum.
+          Lab-vetted shops and partners. Tap a sponsor to open their forum
+          threads and banner — store links stay inside each hub.
         </p>
       </div>
 

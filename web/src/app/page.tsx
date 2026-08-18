@@ -68,8 +68,10 @@ export default function HomePage() {
           name: s.name,
           imageUrl: s.bannerUrl,
           linkUrl: s.linkUrl,
+          threadSlug: s.threadSlug,
           sortOrder: 0,
           isActive: true,
+          storeSlug: s.slug,
         })),
     [stores],
   );
@@ -104,7 +106,11 @@ export default function HomePage() {
 
         <div className="container-lab relative flex min-h-[80svh] flex-col justify-end gap-6 pb-12 pt-16 sm:min-h-[100svh] sm:gap-8 sm:pb-20 sm:pt-24">
           <div className="self-start">
-            <HeroSponsorCarousel banners={sponsors} extras={heroExtras} />
+            <HeroSponsorCarousel
+              banners={sponsors}
+              extras={heroExtras}
+              stores={stores}
+            />
           </div>
           <div className="min-w-0 max-w-xl">
           <p

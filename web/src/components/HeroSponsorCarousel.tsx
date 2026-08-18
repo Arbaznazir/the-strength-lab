@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { mediaURL } from "@/lib/api";
+import { sponsorSlideHref } from "@/lib/sponsors";
 import type { SponsorBanner } from "./ForumList";
 
 const ROTATE_MS = 3500;
@@ -52,9 +53,11 @@ function featuredSponsors(
 export function HeroSponsorCarousel({
   banners,
   extras = [],
+  stores = [],
 }: {
   banners: SponsorBanner[];
   extras?: SponsorBanner[];
+  stores?: { name: string; slug: string }[];
 }) {
   const slides = useMemo(
     () => featuredSponsors(banners, extras),
@@ -78,7 +81,7 @@ export function HeroSponsorCarousel({
 
   const current = slides[index] ?? slides[0];
   const src = mediaURL(current.imageUrl) || current.imageUrl;
-  const href = current.linkUrl?.trim() || undefined;
+  const href = sponsorSlideHref(current, stores);
 
   const media = isVideoBanner(current.imageUrl) ? (
     <video
@@ -119,15 +122,13 @@ export function HeroSponsorCarousel({
         </Link>
       </p>
       {href ? (
-        <a
+        <Link
           href={href}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          aria-label={`Visit ${current.name}`}
+          aria-label={`Open ${current.name} threads`}
           className="block"
         >
           {frame}
-        </a>
+        </Link>
       ) : (
         frame
       )}

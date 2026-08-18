@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, mediaURL } from "@/lib/api";
 import { formatCount, relativeTime } from "@/lib/format";
+import { sponsorHubPath } from "@/lib/sponsors";
 import { TagBadge } from "@/components/TagBadge";
 
 export type TrustedStore = {
@@ -80,7 +81,7 @@ export function TrustedStoresBoard({
               </Link>
             </h2>
             <p className="mt-0.5 text-sm text-[var(--muted)]">
-              Lab-vetted partners — curated by staff.{" "}
+              Lab-vetted partners — open a sponsor for their threads and banner.{" "}
               <Link
                 href="/sponsors"
                 className="text-[var(--fg)] hover:text-[var(--accent)]"
@@ -102,14 +103,7 @@ export function TrustedStoresBoard({
 }
 
 export function SponsorStoreCard({ store: s }: { store: TrustedStore }) {
-  const shopHref = s.linkUrl?.startsWith("http") ? s.linkUrl : "";
-  const threadHref = s.threadSlug
-    ? `/threads/${s.threadSlug}`
-    : s.forumSlug
-      ? `/forums/${s.forumSlug}`
-      : "";
-  const nameHref = shopHref || threadHref || "/sponsors";
-  const nameExternal = Boolean(shopHref);
+  const hubHref = sponsorHubPath(s.slug);
   const banner = mediaURL(s.bannerUrl) || s.bannerUrl;
 
   return (
@@ -117,45 +111,28 @@ export function SponsorStoreCard({ store: s }: { store: TrustedStore }) {
       id={s.slug}
       className="min-w-0 scroll-mt-24 overflow-hidden px-3 py-4 sm:px-5"
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        {nameExternal ? (
-          <a
-            href={nameHref}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            className="min-w-0 break-words text-base font-semibold text-[var(--accent)] hover:underline"
-          >
+      <Link href={hubHref} className="group block min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="min-w-0 break-words text-base font-semibold text-[var(--accent)] group-hover:underline">
             {s.name}
-          </a>
-        ) : (
-          <Link
-            href={nameHref}
-            className="min-w-0 break-words text-base font-semibold text-[var(--accent)] hover:underline"
-          >
-            {s.name}
-          </Link>
-        )}
-        <TagBadge
-          tag={{
-            slug: "trusted-store",
-            label: s.tagLabel || "Trusted Source",
-            color: s.tagColor || "#d4ff3a",
-          }}
-        />
-      </div>
-      {s.description ? (
-        <p className="mt-1 break-words text-sm text-[var(--muted)]">
-          {s.description}
-        </p>
-      ) : null}
-      {banner ? (
-        <StoreBanner
-          src={banner}
-          name={s.name}
-          href={shopHref || threadHref || undefined}
-          external={Boolean(shopHref)}
-        />
-      ) : null}
+          </span>
+          <TagBadge
+            tag={{
+              slug: "trusted-store",
+              label: s.tagLabel || "Trusted Source",
+              color: s.tagColor || "#d4ff3a",
+            }}
+          />
+        </div>
+        {s.description ? (
+          <p className="mt-1 break-words text-sm text-[var(--muted)]">
+            {s.description}
+          </p>
+        ) : null}
+        {banner ? (
+          <StoreBanner src={banner} name={s.name} className="mt-3" />
+        ) : null}
+      </Link>
       <p className="mt-3 text-xs text-[var(--muted)]">
         Topics: {formatCount(s.threadCount)} · Posts:{" "}
         {formatCount(s.postCount)}
@@ -180,16 +157,32 @@ export function SponsorStoreCard({ store: s }: { store: TrustedStore }) {
   );
 }
 
+export function SponsorStoreBanner({
+  store,
+  className = "",
+}: {
+  store: TrustedStore;
+  className?: string;
+}) {
+  const banner = mediaURL(store.bannerUrl) || store.bannerUrl;
+  if (!banner) return null;
+  return (
+    <StoreBanner
+      src={banner}
+      name={store.name}
+      className={className || "w-full"}
+    />
+  );
+}
+
 function StoreBanner({
   src,
   name,
-  href,
-  external,
+  className = "",
 }: {
   src: string;
   name: string;
-  href?: string;
-  external?: boolean;
+  className?: string;
 }) {
   const media = isVideoBanner(src) ? (
     <video
@@ -206,34 +199,17 @@ function StoreBanner({
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
-      alt=""
+      alt={name}
       className="pointer-events-none h-full w-full max-w-full object-cover"
     />
   );
 
-  const className =
-    "relative mt-3 block aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b]";
-
-  if (!href) {
-    return <div className={className}>{media}</div>;
-  }
-  if (external) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer sponsored"
-        aria-label={`Visit ${name}`}
-        className={className}
-      >
-        {media}
-      </a>
-    );
-  }
   return (
-    <Link href={href} aria-label={name} className={className}>
+    <div
+      className={`relative block aspect-[5/1] max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`}
+    >
       {media}
-    </Link>
+    </div>
   );
 }
 
@@ -253,7 +229,7 @@ export function TrustedStoresSideBlock() {
       <ul className="space-y-4">
         {stores.map((s) => (
           <li key={s.id}>
-            <Link href={`/sponsors#${s.slug}`} className="group block">
+            <Link href={sponsorHubPath(s.slug)} className="group block">
               <StoreSideMeta s={s} />
             </Link>
           </li>

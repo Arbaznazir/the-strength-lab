@@ -14,6 +14,7 @@ export type SponsorBanner = {
   forumId?: string | null;
   threadSlug?: string;
   threadTitle?: string;
+  storeSlug?: string;
   sortOrder: number;
   isActive?: boolean;
 };
