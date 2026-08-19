@@ -219,13 +219,13 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 		{
 			name: "Iron Forge Supply", slug: "iron-forge-supply", tag: "Trusted Source", color: "#c4a574",
 			banner: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
-			link:   "", desc: "Training gear and plateload for serious barbell work.",
+			link:   "https://www.anabolicsteroidforums.com/", desc: "Training gear and plateload for serious barbell work.",
 			forumKey: "accessories", order: 6,
 		},
 		{
 			name: "Clarity Recovery", slug: "clarity-recovery", tag: "Trusted Source", color: "#9bb8ff",
 			banner: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1200&q=80",
-			link:   "", desc: "Recovery tools and protocols for hard training blocks.",
+			link:   "https://www.anabolicsteroidforums.com/", desc: "Recovery tools and protocols for hard training blocks.",
 			forumKey: "recovery", order: 7,
 		},
 	}
@@ -505,15 +505,15 @@ func ensureSponsorPosts(db *sql.DB, forumIDs map[string]string, adminID string) 
 		{
 			key: "iron-forge-supply", name: "Iron Forge Supply", forum: "accessories",
 			title:     "Official Iron Forge Supply thread",
-			link:      "",
-			body:      "Official thread for Iron Forge Supply — gear talk for barbell work that stays in-bounds.",
+			link:      "https://www.anabolicsteroidforums.com/",
+			body:      "Official thread for Iron Forge Supply — gear talk for barbell work that stays in-bounds.\n\nForum: https://www.anabolicsteroidforums.com/",
 			storeSlug: "iron-forge-supply",
 		},
 		{
 			key: "clarity-recovery", name: "Clarity Recovery", forum: "recovery",
 			title:     "Official Clarity Recovery thread",
-			link:      "",
-			body:      "Official thread for Clarity Recovery — recovery tools and protocols for hard training blocks.",
+			link:      "https://www.anabolicsteroidforums.com/",
+			body:      "Official thread for Clarity Recovery — recovery tools and protocols for hard training blocks.\n\nForum: https://www.anabolicsteroidforums.com/",
 			storeSlug: "clarity-recovery",
 		},
 	}
