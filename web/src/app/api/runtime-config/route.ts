@@ -15,6 +15,9 @@ function isAllowedApiUrl(url: string) {
     const host = u.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1") return true;
     if (host.endsWith(".code.run")) return true;
+    if (host === "thestrengthlab.biz" || host.endsWith(".thestrengthlab.biz")) {
+      return true;
+    }
     // Allow explicitly configured production hosts only via env (already trusted)
     return Boolean(process.env.API_URL || process.env.NEXT_PUBLIC_API_URL);
   } catch {
@@ -36,27 +39,48 @@ function inferWsFromApi(apiUrl: string) {
     : apiUrl.replace(/^http:/, "ws:");
 }
 
-export async function GET(request: Request) {
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
+function requestOrigin(request: Request, host: string): string {
+  const proto =
+    request.headers.get("x-forwarded-proto") ||
+    (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host.split(",")[0].trim()}`;
+}
 
-  let apiUrl =
-    trim(process.env.API_URL) ||
-    trim(process.env.NEXT_PUBLIC_API_URL) ||
+function isCustomSiteHost(host: string) {
+  const h = host.split(":")[0]?.toLowerCase() ?? "";
+  return h === "thestrengthlab.biz" || h.endsWith(".thestrengthlab.biz");
+}
+
+export async function GET(request: Request) {
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
     "";
 
-  // Only infer from host when env is unset (local/dev convenience)
-  if (!apiUrl) {
-    apiUrl = inferBackendFromHost(host) || LOCAL_API;
-  }
+  const backendUrl =
+    trim(process.env.API_INTERNAL_URL) ||
+    trim(process.env.API_URL) ||
+    trim(process.env.NEXT_PUBLIC_API_URL) ||
+    inferBackendFromHost(host) ||
+    LOCAL_API;
 
-  if (!isAllowedApiUrl(apiUrl)) {
+  // On the custom domain, browser calls same-origin /api/v1 (Next rewrites to backend).
+  // That avoids cross-origin CORS failures from www.thestrengthlab.biz → *.code.run.
+  const useSameOriginProxy =
+    process.env.API_PROXY === "1" ||
+    process.env.API_PROXY === "true" ||
+    isCustomSiteHost(host);
+
+  let apiUrl = useSameOriginProxy ? requestOrigin(request, host) : backendUrl;
+
+  if (!isAllowedApiUrl(apiUrl) && !useSameOriginProxy) {
     return NextResponse.json({ error: "invalid api url config" }, { status: 500 });
   }
 
   let wsUrl =
     trim(process.env.WS_URL) ||
     trim(process.env.NEXT_PUBLIC_WS_URL) ||
-    (apiUrl !== LOCAL_API ? inferWsFromApi(apiUrl) : LOCAL_WS);
+    (backendUrl !== LOCAL_API ? inferWsFromApi(backendUrl) : LOCAL_WS);
 
   if (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://")) {
     return NextResponse.json({ error: "invalid ws url config" }, { status: 500 });

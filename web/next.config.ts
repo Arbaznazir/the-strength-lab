@@ -49,14 +49,31 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const api =
+    const publicApi = process.env.NEXT_PUBLIC_API_URL || "";
+    let publicHost = "";
+    try {
+      publicHost = publicApi ? new URL(publicApi).hostname : "";
+    } catch {
+      publicHost = "";
+    }
+    const publicIsSite =
+      /(?:^|\.)thestrengthlab\.biz$/i.test(publicHost) || publicHost === "";
+
+    const api = (
       process.env.API_INTERNAL_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:8080";
+      process.env.API_URL ||
+      (!publicIsSite ? publicApi : "") ||
+      "http://localhost:8080"
+    ).replace(/\/$/, "");
+
     return [
       {
+        source: "/api/v1/:path*",
+        destination: `${api}/api/v1/:path*`,
+      },
+      {
         source: "/uploads/:path*",
-        destination: `${api.replace(/\/$/, "")}/uploads/:path*`,
+        destination: `${api}/uploads/:path*`,
       },
     ];
   },

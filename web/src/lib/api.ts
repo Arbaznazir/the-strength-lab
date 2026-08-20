@@ -21,16 +21,15 @@ function bakedWsUrl() {
 }
 
 function serverApiUrl() {
-  return trim(process.env.API_URL) || bakedApiUrl();
+  return (
+    trim(process.env.API_INTERNAL_URL) ||
+    trim(process.env.API_URL) ||
+    bakedApiUrl()
+  );
 }
 
 function serverWsUrl() {
   return trim(process.env.WS_URL) || bakedWsUrl();
-}
-
-function clientNeedsRuntimeConfig() {
-  if (typeof window === "undefined") return false;
-  return bakedApiUrl() === LOCAL_API || bakedWsUrl() === LOCAL_WS;
 }
 
 async function resolveRuntimeConfig(): Promise<RuntimeConfig> {
@@ -38,11 +37,6 @@ async function resolveRuntimeConfig(): Promise<RuntimeConfig> {
 
   if (typeof window === "undefined") {
     cached = { apiUrl: serverApiUrl(), wsUrl: serverWsUrl() };
-    return cached;
-  }
-
-  if (!clientNeedsRuntimeConfig()) {
-    cached = { apiUrl: bakedApiUrl(), wsUrl: bakedWsUrl() };
     return cached;
   }
 
@@ -54,9 +48,13 @@ async function resolveRuntimeConfig(): Promise<RuntimeConfig> {
       })
       .then((cfg) => {
         cached = {
-          apiUrl: trim(cfg.apiUrl) || LOCAL_API,
-          wsUrl: trim(cfg.wsUrl) || LOCAL_WS,
+          apiUrl: trim(cfg.apiUrl) || bakedApiUrl() || LOCAL_API,
+          wsUrl: trim(cfg.wsUrl) || bakedWsUrl() || LOCAL_WS,
         };
+        return cached;
+      })
+      .catch(() => {
+        cached = { apiUrl: bakedApiUrl(), wsUrl: bakedWsUrl() };
         return cached;
       })
       .finally(() => {
