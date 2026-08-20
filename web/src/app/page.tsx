@@ -142,7 +142,7 @@ export default function HomePage() {
             style={{ animationDelay: "0.32s" }}
           >
             <a href="#forums" className="btn-primary">
-              Enter the forums
+              Enter the forum
               <ArrowDownRight className="h-4 w-4" />
             </a>
             <NewPostButton

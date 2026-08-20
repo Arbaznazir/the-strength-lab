@@ -394,6 +394,9 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
+        <p className="container-lab mt-6 border-t border-[var(--line)] pt-6 text-center text-xs text-[var(--muted)]">
+          © 2015–2026 The Strength Lab. All rights reserved.
+        </p>
       </footer>
     </div>
   );
