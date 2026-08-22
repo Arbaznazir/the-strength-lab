@@ -532,6 +532,10 @@ func RunBulk(db *sql.DB, forumIDs map[string]string, adminID, modID, lifterID st
 	_ = db.QueryRow(`SELECT COUNT(*) FROM threads`).Scan(&finalThreads)
 	_ = db.QueryRow(`SELECT COUNT(*) FROM posts`).Scan(&finalPosts)
 
+	if err := boostDemoStaffStats(db); err != nil {
+		return err
+	}
+
 	log.Printf("bulk seed complete in %s — %d users, %d threads, %d posts (demo: coach/spotter/lifter · password123)",
 		time.Since(start).Round(time.Millisecond), finalUsers, finalThreads, finalPosts)
 	return nil

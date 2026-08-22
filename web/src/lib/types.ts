@@ -16,6 +16,7 @@ export type UserPublic = {
   messageCount: number;
   reactionScore: number;
   trophyPoints: number;
+  followerCount: number;
   lastSeenAt?: string;
   createdAt: string;
   tags?: UserTag[];

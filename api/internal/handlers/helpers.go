@@ -115,7 +115,7 @@ func scanUser(scanner interface {
 	var lastSeen sql.NullTime
 	err := scanner.Scan(
 		&u.ID, &u.Username, &u.DisplayName, &u.Title, &u.Bio, &u.AvatarURL, &u.BannerURL,
-		&u.Role, &u.MessageCount, &u.ReactionScore, &u.TrophyPoints, &lastSeen, &u.CreatedAt,
+		&u.Role, &u.MessageCount, &u.ReactionScore, &u.TrophyPoints, &u.FollowerCount, &lastSeen, &u.CreatedAt,
 	)
 	if err != nil {
 		return u, err
@@ -130,7 +130,7 @@ func scanUser(scanner interface {
 	return u, nil
 }
 
-const userSelect = `id::text, username, COALESCE(NULLIF(display_name,''), username), title, bio, avatar_url, banner_url, role, message_count, reaction_score, trophy_points, last_seen_at, created_at`
+const userSelect = `id::text, username, COALESCE(NULLIF(display_name,''), username), title, bio, avatar_url, banner_url, role, message_count, reaction_score, trophy_points, follower_count, last_seen_at, created_at`
 
 func (a *API) getUserByID(id string) (models.UserPublic, error) {
 	row := a.DB.QueryRow(`SELECT `+userSelect+` FROM users WHERE id=$1`, id)

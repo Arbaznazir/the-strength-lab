@@ -498,7 +498,7 @@ func (a *API) smartSearchMembers(opts searchOpts) ([]models.UserPublic, error) {
 		var score float64
 		if err := rows.Scan(
 			&u.ID, &u.Username, &u.DisplayName, &u.Title, &u.Bio, &u.AvatarURL, &u.BannerURL,
-			&u.Role, &u.MessageCount, &u.ReactionScore, &u.TrophyPoints, &lastSeen, &u.CreatedAt,
+			&u.Role, &u.MessageCount, &u.ReactionScore, &u.TrophyPoints, &u.FollowerCount, &lastSeen, &u.CreatedAt,
 			&score,
 		); err == nil {
 			if lastSeen.Valid {
@@ -740,7 +740,7 @@ func (a *API) searchMembers(terms []string, memberHint, likeFull string) ([]mode
 		var rank int
 		if err := rows.Scan(
 			&u.ID, &u.Username, &u.DisplayName, &u.Title, &u.Bio, &u.AvatarURL, &u.BannerURL,
-			&u.Role, &u.MessageCount, &u.ReactionScore, &u.TrophyPoints, &lastSeen, &u.CreatedAt,
+			&u.Role, &u.MessageCount, &u.ReactionScore, &u.TrophyPoints, &u.FollowerCount, &lastSeen, &u.CreatedAt,
 			&rank,
 		); err == nil {
 			if lastSeen.Valid {

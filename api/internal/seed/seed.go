@@ -67,6 +67,9 @@ func Run(db *sql.DB) error {
 	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
 		return fmt.Errorf("user tags seed: %w", err)
 	}
+	if err := boostDemoStaffStats(db); err != nil {
+		return fmt.Errorf("staff profile stats: %w", err)
+	}
 	return nil
 }
 
@@ -315,14 +318,14 @@ func ensureDemoUsers(db *sql.DB) (adminID, modID, lifterID string, err error) {
 
 	type demo struct {
 		username, email, title, role string
-		points, messages, reactions  int
-		out                          *string
+		points, messages, reactions, followers int
+		out                                    *string
 	}
 	adminID, modID, lifterID = uuid.New().String(), uuid.New().String(), uuid.New().String()
 	demos := []demo{
-		{"coach", "coach@thestrengthlab.local", "Head Coach", "admin", 120, 40, 80, &adminID},
-		{"spotter", "spotter@thestrengthlab.local", "Moderator", "moderator", 90, 28, 55, &modID},
-		{"lifter", "lifter@thestrengthlab.local", "Member", "member", 25, 12, 18, &lifterID},
+		{"coach", "coach@thestrengthlab.local", "Head Coach", "admin", 3654, 2847, 4128, 1847, &adminID},
+		{"spotter", "spotter@thestrengthlab.local", "Moderator", "moderator", 2416, 1923, 2784, 1243, &modID},
+		{"lifter", "lifter@thestrengthlab.local", "Member", "member", 1428, 1156, 1892, 687, &lifterID},
 	}
 
 	for _, d := range demos {
@@ -339,9 +342,9 @@ func ensureDemoUsers(db *sql.DB) (adminID, modID, lifterID string, err error) {
 		*d.out = id
 		if _, err := db.Exec(`
 			INSERT INTO users(id, username, email, password_hash, display_name, title, role,
-				trophy_points, message_count, reaction_score, last_seen_at, bio, created_at)
-			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),$11, NOW() - INTERVAL '95 days')
-		`, id, d.username, d.email, hash, d.username, d.title, d.role, d.points, d.messages, d.reactions,
+				trophy_points, message_count, reaction_score, follower_count, last_seen_at, bio, created_at)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),$12, NOW() - INTERVAL '95 days')
+		`, id, d.username, d.email, hash, d.username, d.title, d.role, d.points, d.messages, d.reactions, d.followers,
 			"Training at The Strength Lab."); err != nil {
 			return "", "", "", err
 		}

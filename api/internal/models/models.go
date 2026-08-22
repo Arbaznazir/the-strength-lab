@@ -14,6 +14,7 @@ type UserPublic struct {
 	MessageCount  int        `json:"messageCount"`
 	ReactionScore int        `json:"reactionScore"`
 	TrophyPoints  int        `json:"trophyPoints"`
+	FollowerCount int        `json:"followerCount"`
 	LastSeenAt    *time.Time `json:"lastSeenAt,omitempty"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	Tags          []UserTag  `json:"tags,omitempty"`

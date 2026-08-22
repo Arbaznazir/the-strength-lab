@@ -276,7 +276,7 @@ export default function MemberProfilePage({
             </form>
           ) : null}
 
-          <dl className="mt-5 grid grid-cols-3 gap-3 text-center">
+          <dl className="mt-5 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <div className="border border-[var(--line)] bg-[var(--bg)] p-3">
               <dt className="text-[0.65rem] font-semibold uppercase tracking-wider text-[var(--muted)]">
                 Messages
@@ -291,6 +291,14 @@ export default function MemberProfilePage({
               </dt>
               <dd className="mt-1 text-xl font-semibold tabular-nums tracking-tight">
                 {formatCount(member?.reactionScore ?? 0)}
+              </dd>
+            </div>
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-3">
+              <dt className="text-[0.65rem] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                Followers
+              </dt>
+              <dd className="mt-1 text-xl font-semibold tabular-nums tracking-tight">
+                {formatCount(member?.followerCount ?? 0)}
               </dd>
             </div>
             <div className="border border-[var(--line)] bg-[var(--bg)] p-3">
