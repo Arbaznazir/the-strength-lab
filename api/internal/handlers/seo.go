@@ -22,7 +22,8 @@ type sitemapPayload struct {
 	Members []sitemapMember `json:"members"`
 }
 
-// SitemapData returns public URL slugs for search-engine sitemaps (no auth required).
+// SitemapData returns a small set of high-value public URLs for search engines.
+// Bulk seeded threads/members are intentionally omitted so Google focuses on hubs.
 func (a *API) SitemapData(w http.ResponseWriter, r *http.Request) {
 	out := sitemapPayload{
 		Forums:  []sitemapEntry{},
@@ -34,7 +35,6 @@ func (a *API) SitemapData(w http.ResponseWriter, r *http.Request) {
 	forumRows, err := a.DB.Query(`
 		SELECT slug, COALESCE(last_post_at, NOW()) AS updated_at
 		FROM forums
-		WHERE slug NOT IN ('weekly-challenges', 'raffles')
 		ORDER BY sort_order, name
 	`)
 	if err != nil {
@@ -50,25 +50,6 @@ func (a *API) SitemapData(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	forumRows.Close()
-
-	threadRows, err := a.DB.Query(`
-		SELECT slug, COALESCE(last_post_at, created_at) AS updated_at
-		FROM threads
-		ORDER BY last_post_at DESC NULLS LAST
-	`)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "query failed")
-		return
-	}
-	for threadRows.Next() {
-		var e sitemapEntry
-		var updated time.Time
-		if threadRows.Scan(&e.Slug, &updated) == nil {
-			e.UpdatedAt = &updated
-			out.Threads = append(out.Threads, e)
-		}
-	}
-	threadRows.Close()
 
 	storeRows, err := a.DB.Query(`
 		SELECT slug, NOW() AS updated_at
@@ -90,13 +71,17 @@ func (a *API) SitemapData(w http.ResponseWriter, r *http.Request) {
 	}
 	storeRows.Close()
 
+	// Staff / demo accounts only — not the ~18k seeded members.
 	memberRows, err := a.DB.Query(`
 		SELECT username, COALESCE(last_seen_at, created_at) AS updated_at
 		FROM users
 		WHERE banned_at IS NULL
+		  AND (
+			role IN ('admin', 'moderator')
+			OR lower(username) IN ('coach', 'spotter', 'lifter')
+		  )
 		ORDER BY
-			CASE WHEN role IN ('admin', 'moderator') THEN 0 ELSE 1 END,
-			message_count DESC,
+			CASE WHEN role = 'admin' THEN 0 WHEN role = 'moderator' THEN 1 ELSE 2 END,
 			username ASC
 	`)
 	if err != nil {

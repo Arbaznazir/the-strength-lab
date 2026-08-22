@@ -17,6 +17,11 @@ function entry(
   };
 }
 
+/**
+ * Keep this small on purpose: hub pages only.
+ * Google discovers threads by crawling forum pages; dumping 20k seeded URLs
+ * slows indexing more than it helps a new site.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getSiteUrl();
   const now = new Date();
@@ -25,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: base,
       lastModified: now,
-      changeFrequency: "hourly",
+      changeFrequency: "daily",
       priority: 1,
     },
     {
@@ -35,28 +40,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
-      url: `${base}/members`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
-    },
-    {
       url: `${base}/sponsors`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${base}/online`,
-      lastModified: now,
-      changeFrequency: "hourly",
-      priority: 0.5,
-    },
-    {
-      url: `${base}/search`,
+      url: `${base}/members`,
       lastModified: now,
       changeFrequency: "weekly",
-      priority: 0.4,
+      priority: 0.7,
     },
   ];
 
@@ -66,17 +59,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const forums = data.forums.map((f) =>
       entry(`${base}/forums/${f.slug}`, 0.85, "daily", f.updatedAt),
     );
-    const threads = data.threads.map((t) =>
-      entry(`${base}/threads/${t.slug}`, 0.7, "weekly", t.updatedAt),
-    );
     const stores = data.stores.map((s) =>
       entry(`${base}/sponsors/${s.slug}`, 0.75, "weekly", s.updatedAt),
     );
     const members = data.members.map((m) =>
-      entry(`${base}/members/${m.username}`, 0.55, "weekly", m.updatedAt),
+      entry(`${base}/members/${m.username}`, 0.6, "weekly", m.updatedAt),
     );
 
-    return [...staticPages, ...forums, ...threads, ...stores, ...members];
+    return [...staticPages, ...forums, ...stores, ...members];
   } catch {
     return staticPages;
   }
