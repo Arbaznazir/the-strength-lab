@@ -56,18 +56,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const data = await fetchSitemapData();
 
-    const forums = data.forums.map((f) =>
+    const forums = (data.forums ?? []).map((f) =>
       entry(`${base}/forums/${f.slug}`, 0.85, "daily", f.updatedAt),
     );
-    const stores = data.stores.map((s) =>
+    const stores = (data.stores ?? []).map((s) =>
       entry(`${base}/sponsors/${s.slug}`, 0.75, "weekly", s.updatedAt),
     );
-    const members = data.members.map((m) =>
+    const members = (data.members ?? []).map((m) =>
       entry(`${base}/members/${m.username}`, 0.6, "weekly", m.updatedAt),
     );
 
     return [...staticPages, ...forums, ...stores, ...members];
   } catch {
+    // Always return a valid small sitemap even if the API is down.
     return staticPages;
   }
 }
