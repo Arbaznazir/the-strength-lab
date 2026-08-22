@@ -34,7 +34,7 @@ export function getSocialLinks(): SocialLink[] {
 
 export const CONTACT_EMAIL =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
-  "contact@thestrengthlab.com";
+  "strengthlabsupport@gmail.com";
 
 export function contactMailto(): string {
   const subject = encodeURIComponent("The Strength Lab — contact");
