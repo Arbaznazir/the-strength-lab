@@ -107,6 +107,7 @@ func main() {
 		r.Get("/trending", api.Trending)
 		r.With(middleware.RateLimit(searchRL)).Get("/search", api.Search)
 		r.Get("/stats", api.Stats)
+		r.Get("/seo/sitemap", api.SitemapData)
 		r.Get("/online", api.Online)
 		r.Get("/members/overview", api.MembersOverview)
 		r.Get("/members", api.ListMembers)

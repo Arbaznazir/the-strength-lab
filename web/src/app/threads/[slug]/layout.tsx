@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-
-const API =
-  process.env.API_URL?.replace(/\/$/, "") ||
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:8080";
+import { getServerApiUrl, getSiteUrl } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -12,16 +8,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const res = await fetch(`${API}/api/v1/threads/${encodeURIComponent(slug)}`, {
+    const res = await fetch(`${getServerApiUrl()}/api/v1/threads/${encodeURIComponent(slug)}`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return { title: "Thread" };
     const data = (await res.json()) as { thread?: { title?: string } };
     const title = data.thread?.title ?? "Thread";
-    const description = "Discussion at The Strength Lab.";
-    const site =
-      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-      "http://localhost:3000";
+    const description = `${title} — discussion at The Strength Lab community forum.`;
+    const site = getSiteUrl();
     const url = `${site}/threads/${slug}`;
     return {
       title,
@@ -37,6 +31,9 @@ export async function generateMetadata({
         card: "summary",
         title,
         description,
+      },
+      alternates: {
+        canonical: url,
       },
     };
   } catch {
