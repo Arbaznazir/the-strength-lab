@@ -383,7 +383,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </p>
           </div>
           <div className="flex flex-col gap-4 sm:items-end">
-            <ContactUsButton />
+            <ContactUsButton menuPlacement="up" />
             <SocialLinks variant="footer" />
             <div className="flex flex-wrap gap-4 text-xs text-[var(--muted)]">
             <Link href="/whats-new" className="hover:text-[var(--accent)]">What&apos;s new</Link>

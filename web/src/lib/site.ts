@@ -36,9 +36,15 @@ export const CONTACT_EMAIL =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
   "strengthlabsupport@gmail.com";
 
-export function contactMailto(): string {
+export const CONTACT_EMAIL_SECONDARY =
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL_SECONDARY?.trim() ||
+  "thestrengthlab@proton.me";
+
+export const CONTACT_EMAILS = [CONTACT_EMAIL, CONTACT_EMAIL_SECONDARY] as const;
+
+export function contactMailto(email: string = CONTACT_EMAIL): string {
   const subject = encodeURIComponent("The Strength Lab — contact");
-  return `mailto:${CONTACT_EMAIL}?subject=${subject}`;
+  return `mailto:${email}?subject=${subject}`;
 }
 
 export function siteURL(): string {
