@@ -17,11 +17,33 @@ import { ShareBar } from "@/components/ShareBar";
 import { SocialLinks } from "@/components/SocialLinks";
 import { MentionInput } from "@/components/MentionInput";
 import { threadShareURL } from "@/lib/site";
+import {
+  SponsorStoreBanner,
+  externalStoreHref,
+  useTrustedStores,
+  type TrustedStore,
+} from "@/components/TrustedStores";
 
 function postIdFromHash() {
   if (typeof window === "undefined") return "";
   const m = window.location.hash.match(/^#post-(.+)$/);
   return m?.[1] ?? "";
+}
+
+function matchSponsorStore(
+  slug: string,
+  title: string | undefined,
+  stores: TrustedStore[],
+): TrustedStore | null {
+  const byThread = stores.find((s) => s.threadSlug && s.threadSlug === slug);
+  if (byThread) return byThread;
+  const byOfficial = stores.find((s) => slug === `official-${s.slug}`);
+  if (byOfficial) return byOfficial;
+  const key = title?.trim().toLowerCase() ?? "";
+  if (!key) return null;
+  return (
+    stores.find((s) => key.includes(s.name.trim().toLowerCase())) ?? null
+  );
 }
 
 export default function ThreadPageInner({
@@ -33,6 +55,7 @@ export default function ThreadPageInner({
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const staff = isStaff(user);
+  const { stores } = useTrustedStores();
   const [thread, setThread] = useState<Thread | null>(null);
   const [openingPost, setOpeningPost] = useState<Post | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -154,8 +177,14 @@ export default function ThreadPageInner({
     }
   }
 
+  const sponsorStore = matchSponsorStore(slug, thread?.title, stores);
+  const sponsorHref = externalStoreHref(sponsorStore?.linkUrl);
+
   return (
     <div className="container-lab mx-auto max-w-4xl space-y-6 py-8 sm:py-10">
+      {sponsorStore?.bannerUrl ? (
+        <SponsorStoreBanner store={sponsorStore} linkToStore />
+      ) : null}
       <div className="border-b border-[var(--line)] pb-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="kicker">
@@ -178,9 +207,22 @@ export default function ThreadPageInner({
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="max-w-3xl text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
-              {thread?.title ?? "Thread"}
-            </h1>
+            {sponsorHref ? (
+              <a
+                href={sponsorHref}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="group block max-w-3xl"
+              >
+                <h1 className="text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-[var(--accent)] sm:text-2xl">
+                  {thread?.title ?? "Thread"}
+                </h1>
+              </a>
+            ) : (
+              <h1 className="max-w-3xl text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
+                {thread?.title ?? "Thread"}
+              </h1>
+            )}
             {thread ? (
               <p className="mt-2 text-sm text-[var(--muted)]">
                 <Link

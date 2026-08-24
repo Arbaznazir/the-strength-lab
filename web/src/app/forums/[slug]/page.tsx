@@ -19,8 +19,10 @@ import { MentionInput } from "@/components/MentionInput";
 import {
   mapSponsorsToForums,
   SponsorBannerMedia,
+  sponsorBannerThreadHref,
   type SponsorBanner,
 } from "@/components/ForumList";
+import { useTrustedStores } from "@/components/TrustedStores";
 
 type ForumResponse = {
   forum: Forum;
@@ -38,6 +40,7 @@ export default function ForumPage({
   const { slug } = use(params);
   const { user } = useAuth();
   const router = useRouter();
+  const { stores } = useTrustedStores();
   const [forum, setForum] = useState<Forum | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [page, setPage] = useState(1);
@@ -189,18 +192,22 @@ export default function ForumPage({
 
       {sponsor ? (
         <div className="min-w-0">
-          <SponsorBannerMedia banner={sponsor} />
-          {sponsor.threadSlug ? (
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Official post:{" "}
-              <Link
-                href={`/threads/${sponsor.threadSlug}`}
-                className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
-              >
-                {sponsor.threadTitle || sponsor.name}
-              </Link>
-            </p>
-          ) : null}
+          <SponsorBannerMedia banner={sponsor} stores={stores} />
+          {(() => {
+            const hubHref = sponsorBannerThreadHref(sponsor, stores);
+            if (!hubHref) return null;
+            return (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                Official post:{" "}
+                <Link
+                  href={hubHref}
+                  className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
+                >
+                  {sponsor.threadTitle || sponsor.name}
+                </Link>
+              </p>
+            );
+          })()}
         </div>
       ) : null}
 

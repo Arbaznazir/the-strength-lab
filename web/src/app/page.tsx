@@ -209,6 +209,7 @@ export default function HomePage() {
                     <ForumList
                       categories={[leadCategory]}
                       sponsorsByForumId={sponsorsByForumId}
+                      stores={stores}
                     />
                   ) : null}
                   <TrustedStoresBoard limit={3} />
@@ -216,6 +217,7 @@ export default function HomePage() {
                     <ForumList
                       categories={tailCategories}
                       sponsorsByForumId={sponsorsByForumId}
+                      stores={stores}
                     />
                   ) : null}
                 </>

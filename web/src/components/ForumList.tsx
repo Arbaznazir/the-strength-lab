@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Category, Forum } from "@/lib/types";
 import { formatCount, relativeTime } from "@/lib/format";
 import { mediaURL } from "@/lib/api";
-import { sponsorHubPath } from "@/lib/sponsors";
+import { sponsorSlideHref } from "@/lib/sponsors";
 import { Avatar } from "./Avatar";
 
 export type SponsorBanner = {
@@ -63,9 +63,11 @@ export function mapSponsorsToForums(
 export function ForumList({
   categories,
   sponsorsByForumId,
+  stores = [],
 }: {
   categories: Category[];
   sponsorsByForumId?: Record<string, SponsorBanner>;
+  stores?: { name: string; slug: string }[];
 }) {
   if (!categories.length) {
     return (
@@ -105,6 +107,7 @@ export function ForumList({
                 key={forum.id}
                 forum={forum}
                 sponsor={sponsorsByForumId?.[forum.id]}
+                stores={stores}
               />
             ))}
           </div>
@@ -119,15 +122,23 @@ function isVideoBanner(url: string) {
   return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov");
 }
 
-export function sponsorBannerThreadHref(banner: SponsorBanner): string | undefined {
-  if (banner.threadSlug) return `/threads/${banner.threadSlug}`;
-  if (banner.storeSlug) return sponsorHubPath(banner.storeSlug);
-  return undefined;
+/** Homepage / forum-row banners open the sponsor hub (same as top carousel). */
+export function sponsorBannerThreadHref(
+  banner: SponsorBanner,
+  stores: { name: string; slug: string }[] = [],
+): string | undefined {
+  return sponsorSlideHref(banner, stores);
 }
 
-export function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
+export function SponsorBannerMedia({
+  banner,
+  stores = [],
+}: {
+  banner: SponsorBanner;
+  stores?: { name: string; slug: string }[];
+}) {
   const src = mediaURL(banner.imageUrl) || banner.imageUrl;
-  const href = sponsorBannerThreadHref(banner);
+  const href = sponsorBannerThreadHref(banner, stores);
   const media = isVideoBanner(banner.imageUrl) ? (
     <video
       src={src}
@@ -156,7 +167,7 @@ export function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
       <Link
         href={href}
         className={shellClass}
-        aria-label={`Open ${banner.name} thread`}
+        aria-label={`Open ${banner.name} sponsor page`}
       >
         {media}
       </Link>
@@ -168,10 +179,14 @@ export function SponsorBannerMedia({ banner }: { banner: SponsorBanner }) {
 function ForumRow({
   forum,
   sponsor,
+  stores,
 }: {
   forum: Forum;
   sponsor?: SponsorBanner;
+  stores: { name: string; slug: string }[];
 }) {
+  const hubHref = sponsor ? sponsorBannerThreadHref(sponsor, stores) : undefined;
+
   return (
     <div className="forum-row-wrap group border-t border-[var(--line)] py-4 transition-colors hover:bg-[color-mix(in_oklab,var(--accent)_4%,transparent)]">
       <div className="forum-row !border-0 !py-0">
@@ -225,12 +240,12 @@ function ForumRow({
 
       {sponsor ? (
         <div className="w-full min-w-0">
-          <SponsorBannerMedia banner={sponsor} />
-          {sponsor.threadSlug ? (
+          <SponsorBannerMedia banner={sponsor} stores={stores} />
+          {hubHref ? (
             <p className="mt-2 text-xs text-[var(--muted)]">
               Official post:{" "}
               <Link
-                href={`/forums/${forum.slug}`}
+                href={hubHref}
                 className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
                 onClick={(e) => e.stopPropagation()}
               >

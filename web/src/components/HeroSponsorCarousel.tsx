@@ -42,12 +42,15 @@ function featuredSponsors(
   const pick = (needle: string) =>
     pool.find((b) => nameKey(b.name).includes(needle));
   const first = pick("steroidify");
-  const second = pick("napsgear") ?? pick("naps gear");
+  const second = pick("your muscle") ?? pick("muscle shop");
+  const third = pick("napsgear") ?? pick("naps gear");
   const used = new Set(
-    [first, second].filter(Boolean).map((b) => nameKey(b!.name)),
+    [first, second, third].filter(Boolean).map((b) => nameKey(b!.name)),
   );
   const rest = pool.filter((b) => !used.has(nameKey(b.name)));
-  return [first, second, ...rest].filter((b): b is SponsorBanner => Boolean(b)).slice(0, 3);
+  return [first, second, third, ...rest]
+    .filter((b): b is SponsorBanner => Boolean(b))
+    .slice(0, 4);
 }
 
 export function HeroSponsorCarousel({

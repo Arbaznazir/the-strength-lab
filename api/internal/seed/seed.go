@@ -70,6 +70,9 @@ func Run(db *sql.DB) error {
 	if err := boostDemoStaffStats(db); err != nil {
 		return fmt.Errorf("staff profile stats: %w", err)
 	}
+	if err := ensureRecentActivity(db, forumIDs); err != nil {
+		return fmt.Errorf("recent activity seed: %w", err)
+	}
 	return nil
 }
 
@@ -103,6 +106,7 @@ func ensureSponsorBanners(db *sql.DB) error {
 		{"Steroidify", "/sponsors/steroidify.mp4", "https://steroidify.ltd/", 1},
 		{"Dragon Pharma Store", "/sponsors/dragon-pharma.mp4", "https://dragonpharmastore.to/", 2},
 		{"DMK Labs USA", "/sponsors/dmk-labs.mp4", "https://dmklabsusa.com/", 3},
+		{"Your Muscle Shop", "/sponsors/your-muscle-shop.jpg", "https://www.yourmuscleshopforum.com/index.php", 4},
 	}
 	for _, d := range demos {
 		id := uuid.New()
@@ -116,7 +120,7 @@ func ensureSponsorBanners(db *sql.DB) error {
 	if _, err := db.Exec(`INSERT INTO schema_migrations(filename) VALUES($1) ON CONFLICT DO NOTHING`, seedFlag); err != nil {
 		return err
 	}
-	log.Println("sponsor banners seeded (Steroidify, Dragon Pharma Store, DMK Labs USA)")
+	log.Println("sponsor banners seeded (Steroidify, Dragon Pharma Store, DMK Labs USA, Your Muscle Shop)")
 	return nil
 }
 
@@ -127,6 +131,7 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 		{"/sponsors/steroidify.mp4", "Steroidify", "https://steroidify.ltd/"},
 		{"/sponsors/dragon-pharma.mp4", "Dragon Pharma Store", "https://dragonpharmastore.to/"},
 		{"/sponsors/dmk-labs.mp4", "DMK Labs USA", "https://dmklabsusa.com/"},
+		{"/sponsors/your-muscle-shop.jpg", "Your Muscle Shop", "https://www.yourmuscleshopforum.com/index.php"},
 	}
 	for _, l := range links {
 		if _, err := db.Exec(`
@@ -179,6 +184,20 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 			return err
 		}
 	}
+
+	var yms int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sponsor_banners WHERE name ILIKE '%your muscle shop%'`).Scan(&yms); err != nil {
+		return err
+	}
+	if yms == 0 {
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, sort_order, is_active)
+			VALUES($1,'Your Muscle Shop','/sponsors/your-muscle-shop.jpg','https://www.yourmuscleshopforum.com/index.php',4,true)
+		`, id); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -187,7 +206,7 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 		name, slug, tag, color, banner, link, desc, forumKey string
 		order                                                int
 	}
-	// Homepage board keeps the first three; /sponsors lists all seven.
+	// Homepage board keeps the first few; /sponsors lists all partners.
 	stores := []store{
 		{
 			name: "Anabolic Dragon", slug: "anabolic-dragon", tag: "Trusted Source", color: "#e85d5d",
@@ -230,6 +249,13 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 			banner: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1200&q=80",
 			link:   "https://www.anabolicsteroidforums.com/", desc: "Recovery tools and protocols for hard training blocks.",
 			forumKey: "recovery", order: 7,
+		},
+		{
+			name: "Your Muscle Shop", slug: "your-muscle-shop", tag: "Trusted Source", color: "#f0c14b",
+			banner: "/sponsors/your-muscle-shop.jpg",
+			link:   "https://www.yourmuscleshopforum.com/index.php",
+			desc:   "Your Muscle Shop + GenLabs — Bitcoin promo and community forum partner.",
+			forumKey: "supplements", order: 8,
 		},
 	}
 
@@ -518,6 +544,13 @@ func ensureSponsorPosts(db *sql.DB, forumIDs map[string]string, adminID string) 
 			link:      "https://www.anabolicsteroidforums.com/",
 			body:      "Official thread for Clarity Recovery — recovery tools and protocols for hard training blocks.\n\nForum: https://www.anabolicsteroidforums.com/",
 			storeSlug: "clarity-recovery",
+		},
+		{
+			key: "your-muscle-shop", name: "Your Muscle Shop", forum: "supplements",
+			title:      "Official Your Muscle Shop thread",
+			link:       "https://www.yourmuscleshopforum.com/index.php",
+			body:       "Official thread for Your Muscle Shop / GenLabs.\n\nPay with Bitcoin promo talk, reviews, and questions that stay in-bounds. Forum: https://www.yourmuscleshopforum.com/index.php",
+			bannerName: "Your Muscle Shop", storeSlug: "your-muscle-shop",
 		},
 	}
 

@@ -2,6 +2,14 @@ export function sponsorHubPath(slug: string) {
   return `/sponsors/${slug}`;
 }
 
+export function externalSponsorHref(linkUrl?: string): string | undefined {
+  const url = linkUrl?.trim();
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return url;
+  return `https://${url}`;
+}
+
 /** Match a banner label to a trusted-store slug for hub links. */
 export function sponsorSlugForName(
   name: string,
@@ -17,8 +25,13 @@ export function sponsorSlugForName(
   })?.slug;
 }
 
+/** Top carousel / homepage banners → sponsor hub (threads), not the external shop. */
 export function sponsorSlideHref(
-  slide: { name: string; threadSlug?: string; storeSlug?: string },
+  slide: {
+    name: string;
+    threadSlug?: string;
+    storeSlug?: string;
+  },
   stores: { name: string; slug: string }[],
 ): string | undefined {
   const slug = slide.storeSlug ?? sponsorSlugForName(slide.name, stores);
