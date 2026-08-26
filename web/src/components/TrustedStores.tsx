@@ -135,7 +135,13 @@ export function SponsorStoreCard({ store: s }: { store: TrustedStore }) {
           </p>
         ) : null}
         {banner ? (
-          <StoreBanner src={banner} name={s.name} className="mt-3" />
+          <StoreBanner
+            src={banner}
+            name={s.name}
+            className={
+              isSquareSponsorBanner(s.bannerUrl, s.name) ? "mt-3" : "mt-3 w-full"
+            }
+          />
         ) : null}
       </Link>
       <p className="mt-3 text-xs text-[var(--muted)]">
@@ -212,10 +218,13 @@ function StoreBanner({
   className?: string;
 }) {
   const square = isSquareSponsorBanner(src, name);
+  const fitClass = square
+    ? "pointer-events-none h-full w-full object-contain"
+    : "pointer-events-none h-full w-full object-cover";
   const media = isVideoBanner(src) ? (
     <video
       src={src}
-      className="pointer-events-none h-full w-full object-contain"
+      className={fitClass}
       autoPlay
       muted
       loop
@@ -225,11 +234,7 @@ function StoreBanner({
     />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={name}
-      className="pointer-events-none h-full w-full max-w-full object-contain"
-    />
+    <img src={src} alt={name} className={fitClass} />
   );
 
   return (
@@ -237,7 +242,7 @@ function StoreBanner({
       className={
         square
           ? `relative block aspect-square w-full max-w-[16rem] overflow-hidden border border-[var(--line)] bg-[#0a0c0b] sm:max-w-[18rem] ${className}`
-          : `relative block aspect-[5/1] max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`
+          : `relative block aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`
       }
     >
       {media}

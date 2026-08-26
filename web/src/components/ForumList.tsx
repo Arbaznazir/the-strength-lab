@@ -140,10 +140,13 @@ export function SponsorBannerMedia({
   const src = mediaURL(banner.imageUrl) || banner.imageUrl;
   const href = sponsorBannerThreadHref(banner, stores);
   const square = isSquareSponsorBanner(banner.imageUrl, banner.name);
+  const fitClass = square
+    ? "pointer-events-none h-full w-full object-contain"
+    : "pointer-events-none h-full w-full object-cover";
   const media = isVideoBanner(banner.imageUrl) ? (
     <video
       src={src}
-      className="pointer-events-none h-full w-full object-contain"
+      className={fitClass}
       autoPlay
       muted
       loop
@@ -153,11 +156,7 @@ export function SponsorBannerMedia({
     />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={banner.name}
-      className="pointer-events-none h-full w-full object-contain"
-    />
+    <img src={src} alt={banner.name} className={fitClass} />
   );
 
   const shellClass = square

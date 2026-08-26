@@ -67,6 +67,9 @@ func Run(db *sql.DB) error {
 	if err := ensureGenLabsPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("genlabs posts seed: %w", err)
 	}
+	if err := ensureAdminPosts(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("admin posts seed: %w", err)
+	}
 	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
 		return fmt.Errorf("user tags seed: %w", err)
 	}

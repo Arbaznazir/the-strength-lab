@@ -88,12 +88,15 @@ export function HeroSponsorCarousel({
   const src = mediaURL(current.imageUrl) || current.imageUrl;
   const href = sponsorSlideHref(current, stores);
   const square = isSquareSponsorBanner(current.imageUrl, current.name);
+  const fitClass = square
+    ? "pointer-events-none h-full w-full object-contain"
+    : "pointer-events-none h-full w-full object-cover";
 
   const media = isVideoBanner(current.imageUrl) ? (
     <video
       key={current.id}
       src={src}
-      className="pointer-events-none h-full w-full object-contain"
+      className={fitClass}
       autoPlay
       muted
       loop
@@ -107,7 +110,7 @@ export function HeroSponsorCarousel({
       key={current.id}
       src={src}
       alt={current.name}
-      className="pointer-events-none h-full w-full object-contain"
+      className={fitClass}
     />
   );
 
