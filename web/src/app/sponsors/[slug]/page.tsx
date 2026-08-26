@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { apiFetch, mediaURL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { sponsorHubPath } from "@/lib/sponsors";
+import { sponsorHubPath, SPONSOR_CONTACTS, whatsappHref } from "@/lib/sponsors";
 import type { Thread } from "@/lib/types";
 import {
   ThreadFilters,
@@ -90,6 +90,7 @@ export default function SponsorHubPage({
   }
 
   const storeHref = externalStoreHref(store?.linkUrl);
+  const contacts = store ? SPONSOR_CONTACTS[store.slug] : undefined;
 
   return (
     <div className="container-lab space-y-8 py-8 sm:py-10">
@@ -145,6 +146,60 @@ export default function SponsorHubPage({
             >
               Visit store ↗
             </a>
+          ) : null}
+          {contacts ? (
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="border border-[var(--line)] bg-[var(--bg)] p-4">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  Visit us
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {contacts.visit.map((v) => (
+                    <li key={v.href}>
+                      <a
+                        href={v.href}
+                        target="_blank"
+                        rel="noopener noreferrer sponsored"
+                        className="text-sm font-medium text-[var(--fg)] hover:text-[var(--accent)]"
+                      >
+                        {v.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="border border-[var(--line)] bg-[var(--bg)] p-4">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  Contact us
+                </p>
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {contacts.email ? (
+                    <li>
+                      <span className="text-[var(--muted)]">Email: </span>
+                      <a
+                        href={`mailto:${contacts.email}`}
+                        className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
+                      >
+                        {contacts.email}
+                      </a>
+                    </li>
+                  ) : null}
+                  {contacts.whatsapp ? (
+                    <li>
+                      <span className="text-[var(--muted)]">WhatsApp: </span>
+                      <a
+                        href={whatsappHref(contacts.whatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
+                      >
+                        {contacts.whatsapp}
+                      </a>
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+            </div>
           ) : null}
         </div>
         {store?.forumSlug && user ? (

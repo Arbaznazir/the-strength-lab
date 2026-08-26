@@ -64,6 +64,9 @@ func Run(db *sql.DB) error {
 	if err := ensureSponsorPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("sponsor posts seed: %w", err)
 	}
+	if err := ensureGenLabsPosts(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("genlabs posts seed: %w", err)
+	}
 	if err := ensureDemoUserTags(db, adminID, modID, lifterID); err != nil {
 		return fmt.Errorf("user tags seed: %w", err)
 	}
@@ -103,6 +106,7 @@ func ensureSponsorBanners(db *sql.DB) error {
 		name, image, link string
 		order             int
 	}{
+		{"GenLabs", "/sponsors/genlabs.jpg", "https://www.genlabs.st", 0},
 		{"Steroidify", "/sponsors/steroidify.mp4", "https://steroidify.ltd/", 1},
 		{"Dragon Pharma Store", "/sponsors/dragon-pharma.mp4", "https://dragonpharmastore.to/", 2},
 		{"DMK Labs USA", "/sponsors/dmk-labs.mp4", "https://dmklabsusa.com/", 3},
@@ -120,7 +124,7 @@ func ensureSponsorBanners(db *sql.DB) error {
 	if _, err := db.Exec(`INSERT INTO schema_migrations(filename) VALUES($1) ON CONFLICT DO NOTHING`, seedFlag); err != nil {
 		return err
 	}
-	log.Println("sponsor banners seeded (Steroidify, Dragon Pharma Store, DMK Labs USA, Your Muscle Shop)")
+	log.Println("sponsor banners seeded (Steroidify, Dragon Pharma Store, DMK Labs USA, Your Muscle Shop, GenLabs)")
 	return nil
 }
 
@@ -132,6 +136,7 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 		{"/sponsors/dragon-pharma.mp4", "Dragon Pharma Store", "https://dragonpharmastore.to/"},
 		{"/sponsors/dmk-labs.mp4", "DMK Labs USA", "https://dmklabsusa.com/"},
 		{"/sponsors/your-muscle-shop.jpg", "Your Muscle Shop", "https://www.yourmuscleshopforum.com/index.php"},
+		{"/sponsors/genlabs.jpg", "GenLabs", "https://www.genlabs.st"},
 	}
 	for _, l := range links {
 		if _, err := db.Exec(`
@@ -198,6 +203,20 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 			return err
 		}
 	}
+
+	var genlabs int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sponsor_banners WHERE name ILIKE '%genlabs%'`).Scan(&genlabs); err != nil {
+		return err
+	}
+	if genlabs == 0 {
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, sort_order, is_active)
+			VALUES($1,'GenLabs','/sponsors/genlabs.jpg','https://www.genlabs.st',0,true)
+		`, id); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -208,6 +227,13 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 	}
 	// Homepage board keeps the first few; /sponsors lists all partners.
 	stores := []store{
+		{
+			name: "GenLabs", slug: "genlabs", tag: "Trusted Source", color: "#e85d5d",
+			banner: "/sponsors/genlabs.jpg",
+			link:   "https://www.genlabs.st",
+			desc:   "Biggest GenLabs price drop — injectables, peptides, SARMs, orals, HGH/HMG, insulin, and fat burners.",
+			forumKey: "supplements", order: 0,
+		},
 		{
 			name: "Anabolic Dragon", slug: "anabolic-dragon", tag: "Trusted Source", color: "#e85d5d",
 			banner: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80",
@@ -551,6 +577,13 @@ func ensureSponsorPosts(db *sql.DB, forumIDs map[string]string, adminID string) 
 			link:       "https://www.yourmuscleshopforum.com/index.php",
 			body:       "Official thread for Your Muscle Shop / GenLabs.\n\nPay with Bitcoin promo talk, reviews, and questions that stay in-bounds. Forum: https://www.yourmuscleshopforum.com/index.php",
 			bannerName: "Your Muscle Shop", storeSlug: "your-muscle-shop",
+		},
+		{
+			key: "genlabs", name: "GenLabs", forum: "supplements",
+			title:      "THE BIGGEST GENLABS SAVINGS | LIMITED-TIME PRICES DROP | DON'T MISS OUT",
+			link:       "https://www.genlabs.st",
+			body:       "Official GenLabs promo thread — biggest price drop on injectables, peptides, SARMs, orals, HGH/HMG, insulin, and fat burners.\n\nVisit us:\nhttps://www.genlabs.st\nhttps://www.yourmuscleshop.com\n\nContact us:\nEmail: Support@genlabs.st\nWhatsApp: +91 96917 10589",
+			bannerName: "GenLabs", storeSlug: "genlabs",
 		},
 	}
 

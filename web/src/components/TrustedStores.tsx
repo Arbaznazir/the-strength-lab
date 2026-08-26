@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, mediaURL } from "@/lib/api";
 import { formatCount, relativeTime } from "@/lib/format";
-import { sponsorHubPath } from "@/lib/sponsors";
+import { isSquareSponsorBanner, sponsorHubPath } from "@/lib/sponsors";
 import { TagBadge } from "@/components/TagBadge";
 
 export type TrustedStore = {
@@ -179,7 +179,10 @@ export function SponsorStoreBanner({
     <StoreBanner
       src={banner}
       name={store.name}
-      className={className || "w-full"}
+      className={
+        className ||
+        (isSquareSponsorBanner(store.bannerUrl, store.name) ? "" : "w-full")
+      }
     />
   );
 
@@ -208,10 +211,11 @@ function StoreBanner({
   name: string;
   className?: string;
 }) {
+  const square = isSquareSponsorBanner(src, name);
   const media = isVideoBanner(src) ? (
     <video
       src={src}
-      className="pointer-events-none h-full w-full object-cover"
+      className="pointer-events-none h-full w-full object-contain"
       autoPlay
       muted
       loop
@@ -224,13 +228,17 @@ function StoreBanner({
     <img
       src={src}
       alt={name}
-      className="pointer-events-none h-full w-full max-w-full object-cover"
+      className="pointer-events-none h-full w-full max-w-full object-contain"
     />
   );
 
   return (
     <div
-      className={`relative block aspect-[5/1] max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`}
+      className={
+        square
+          ? `relative block aspect-square w-full max-w-[16rem] overflow-hidden border border-[var(--line)] bg-[#0a0c0b] sm:max-w-[18rem] ${className}`
+          : `relative block aspect-[5/1] max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`
+      }
     >
       {media}
     </div>
