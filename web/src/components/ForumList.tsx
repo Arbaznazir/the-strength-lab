@@ -4,7 +4,8 @@ import Link from "next/link";
 import type { Category, Forum } from "@/lib/types";
 import { formatCount, relativeTime } from "@/lib/format";
 import { mediaURL } from "@/lib/api";
-import { isSquareSponsorBanner, sponsorSlideHref } from "@/lib/sponsors";
+import { sponsorSlideHref } from "@/lib/sponsors";
+import { useLiveClock } from "@/hooks/useLiveClock";
 import { Avatar } from "./Avatar";
 
 export type SponsorBanner = {
@@ -69,6 +70,8 @@ export function ForumList({
   sponsorsByForumId?: Record<string, SponsorBanner>;
   stores?: { name: string; slug: string }[];
 }) {
+  useLiveClock(30_000);
+
   if (!categories.length) {
     return (
       <p className="text-[var(--muted)]">No forums yet. Check back soon.</p>
@@ -139,10 +142,7 @@ export function SponsorBannerMedia({
 }) {
   const src = mediaURL(banner.imageUrl) || banner.imageUrl;
   const href = sponsorBannerThreadHref(banner, stores);
-  const square = isSquareSponsorBanner(banner.imageUrl, banner.name);
-  const fitClass = square
-    ? "pointer-events-none h-full w-full object-contain"
-    : "pointer-events-none h-full w-full object-cover";
+  const fitClass = "pointer-events-none h-full w-full object-cover";
   const media = isVideoBanner(banner.imageUrl) ? (
     <video
       src={src}
@@ -159,9 +159,8 @@ export function SponsorBannerMedia({
     <img src={src} alt={banner.name} className={fitClass} />
   );
 
-  const shellClass = square
-    ? "mt-3 block aspect-square w-[9.5rem] cursor-pointer overflow-hidden border border-[var(--line)] bg-[var(--bg)] sm:w-40"
-    : "mt-3 block w-full cursor-pointer overflow-hidden border border-[var(--line)] bg-[var(--bg)] aspect-[6/1] max-h-28 sm:max-h-32";
+  const shellClass =
+    "mt-3 block w-full cursor-pointer overflow-hidden border border-[var(--line)] bg-[var(--bg)] aspect-[6/1] max-h-28 sm:max-h-32";
 
   if (href) {
     return (

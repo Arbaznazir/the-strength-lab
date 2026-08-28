@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { mediaURL } from "@/lib/api";
-import { isSquareSponsorBanner, sponsorSlideHref } from "@/lib/sponsors";
+import { sponsorSlideHref } from "@/lib/sponsors";
 import type { SponsorBanner } from "./ForumList";
 
 const ROTATE_MS = 3500;
@@ -41,21 +41,25 @@ function featuredSponsors(
   const pool = uniqueByName([...banners, ...extras]);
   const pick = (needle: string) =>
     pool.find((b) => nameKey(b.name).includes(needle));
-  // GenLabs first (client priority), then loot sale, then other featured partners.
-  const first = pick("genlabs") ?? pick("gen labs");
-  const lootSale =
-    pool.find((b) => nameKey(b.name).includes("loot sale")) ??
-    pool.find((b) => b.imageUrl.toLowerCase().includes("loot-sale"));
+  const genlabsLoot =
+    pool.find((b) => nameKey(b.name).includes("genlabs loot")) ??
+    pool.find((b) => b.imageUrl.toLowerCase().includes("genlabs-loot-sale"));
+  const genlabs = pick("genlabs") ?? pick("gen labs");
+  const otherLoot =
+    genlabsLoot == null
+      ? pool.find((b) => nameKey(b.name).includes("loot sale")) ??
+        pool.find((b) => b.imageUrl.toLowerCase().includes("loot-sale"))
+      : undefined;
   const second = pick("steroidify");
   const third = pick("your muscle") ?? pick("muscle shop");
   const fourth = pick("napsgear") ?? pick("naps gear");
   const used = new Set(
-    [first, lootSale, second, third, fourth]
+    [genlabsLoot, genlabs, otherLoot, second, third, fourth]
       .filter(Boolean)
       .map((b) => nameKey(b!.name)),
   );
   const rest = pool.filter((b) => !used.has(nameKey(b.name)));
-  return [first, lootSale, second, third, fourth, ...rest]
+  return [genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
     .filter((b): b is SponsorBanner => Boolean(b))
     .slice(0, 4);
 }
@@ -92,10 +96,7 @@ export function HeroSponsorCarousel({
   const current = slides[index] ?? slides[0];
   const src = mediaURL(current.imageUrl) || current.imageUrl;
   const href = sponsorSlideHref(current, stores);
-  const square = isSquareSponsorBanner(current.imageUrl, current.name);
-  const fitClass = square
-    ? "pointer-events-none h-full w-full object-contain"
-    : "pointer-events-none h-full w-full object-cover";
+  const fitClass = "pointer-events-none h-full w-full object-cover";
 
   const media = isVideoBanner(current.imageUrl) ? (
     <video
@@ -119,11 +120,7 @@ export function HeroSponsorCarousel({
     />
   );
 
-  const frame = square ? (
-    <div className="relative aspect-square w-[7.5rem] overflow-hidden border border-white/15 bg-[#0a0c0b] sm:w-36">
-      {media}
-    </div>
-  ) : (
+  const frame = (
     <div className="relative aspect-[6/1] max-h-28 w-full overflow-hidden border border-white/15 bg-[#0a0c0b] sm:max-h-32">
       {media}
     </div>
@@ -143,7 +140,7 @@ export function HeroSponsorCarousel({
         <Link
           href={href}
           aria-label={`Open ${current.name} threads`}
-          className={clsx("block", square && "w-fit")}
+          className="block"
         >
           {frame}
         </Link>

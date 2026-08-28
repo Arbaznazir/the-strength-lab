@@ -2,18 +2,6 @@ export function sponsorHubPath(slug: string) {
   return `/sponsors/${slug}`;
 }
 
-/** Square / poster creatives (not wide 5:1 or 6:1 banners). */
-export function isSquareSponsorBanner(url?: string, name?: string): boolean {
-  const u = (url || "").toLowerCase().split("?")[0] ?? "";
-  const n = (name || "").toLowerCase();
-  return (
-    u.includes("genlabs") ||
-    n.includes("genlabs") ||
-    u.includes("loot-sale") ||
-    n.includes("loot sale")
-  );
-}
-
 export function externalSponsorHref(linkUrl?: string): string | undefined {
   const url = linkUrl?.trim();
   if (!url) return undefined;
@@ -31,6 +19,14 @@ export type SponsorContactInfo = {
 /** Extra visit / contact details shown on sponsor hub pages. */
 export const SPONSOR_CONTACTS: Record<string, SponsorContactInfo> = {
   genlabs: {
+    visit: [
+      { label: "www.genlabs.st", href: "https://www.genlabs.st" },
+      { label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" },
+    ],
+    email: "Support@genlabs.st",
+    whatsapp: "+91 96917 10589",
+  },
+  "genlabs-loot-sale": {
     visit: [
       { label: "www.genlabs.st", href: "https://www.genlabs.st" },
       { label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" },

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, mediaURL } from "@/lib/api";
 import { formatCount, relativeTime } from "@/lib/format";
-import { isSquareSponsorBanner, sponsorHubPath } from "@/lib/sponsors";
+import { sponsorHubPath } from "@/lib/sponsors";
+import { useLiveClock } from "@/hooks/useLiveClock";
 import { TagBadge } from "@/components/TagBadge";
 
 export type TrustedStore = {
@@ -39,10 +40,15 @@ export function useTrustedStores() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    void apiFetch<{ stores: TrustedStore[] }>("/trusted-stores", { auth: false })
-      .then((d) => setStores(d.stores ?? []))
-      .catch(() => setStores([]))
-      .finally(() => setLoaded(true));
+    const load = () => {
+      void apiFetch<{ stores: TrustedStore[] }>("/trusted-stores", { auth: false })
+        .then((d) => setStores(d.stores ?? []))
+        .catch(() => setStores([]))
+        .finally(() => setLoaded(true));
+    };
+    load();
+    const timer = setInterval(load, 90_000);
+    return () => clearInterval(timer);
   }, []);
 
   return { stores, loaded };
@@ -57,6 +63,7 @@ export function TrustedStoresBoard({
 }) {
   const { stores, loaded } = useTrustedStores();
   const list = typeof limit === "number" ? stores.slice(0, limit) : stores;
+  useLiveClock(30_000);
 
   useEffect(() => {
     if (!loaded) return;
@@ -135,13 +142,7 @@ export function SponsorStoreCard({ store: s }: { store: TrustedStore }) {
           </p>
         ) : null}
         {banner ? (
-          <StoreBanner
-            src={banner}
-            name={s.name}
-            className={
-              isSquareSponsorBanner(s.bannerUrl, s.name) ? "mt-3" : "mt-3 w-full"
-            }
-          />
+          <StoreBanner src={banner} name={s.name} className="mt-3 w-full" />
         ) : null}
       </Link>
       <p className="mt-3 text-xs text-[var(--muted)]">
@@ -185,10 +186,7 @@ export function SponsorStoreBanner({
     <StoreBanner
       src={banner}
       name={store.name}
-      className={
-        className ||
-        (isSquareSponsorBanner(store.bannerUrl, store.name) ? "" : "w-full")
-      }
+      className={className || "w-full"}
     />
   );
 
@@ -217,10 +215,7 @@ function StoreBanner({
   name: string;
   className?: string;
 }) {
-  const square = isSquareSponsorBanner(src, name);
-  const fitClass = square
-    ? "pointer-events-none h-full w-full object-contain"
-    : "pointer-events-none h-full w-full object-cover";
+  const fitClass = "pointer-events-none h-full w-full object-cover";
   const media = isVideoBanner(src) ? (
     <video
       src={src}
@@ -239,11 +234,7 @@ function StoreBanner({
 
   return (
     <div
-      className={
-        square
-          ? `relative block aspect-square w-full max-w-[16rem] overflow-hidden border border-[var(--line)] bg-[#0a0c0b] sm:max-w-[18rem] ${className}`
-          : `relative block aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`
-      }
+      className={`relative block aspect-[5/1] w-full max-w-full overflow-hidden border border-[var(--line)] bg-[#0a0c0b] ${className}`}
     >
       {media}
     </div>

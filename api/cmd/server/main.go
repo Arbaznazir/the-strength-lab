@@ -14,6 +14,7 @@ import (
 	"github.com/thestrengthlab/api/internal/db"
 	"github.com/thestrengthlab/api/internal/handlers"
 	"github.com/thestrengthlab/api/internal/middleware"
+	"github.com/thestrengthlab/api/internal/pulse"
 	"github.com/thestrengthlab/api/internal/realtime"
 	"github.com/thestrengthlab/api/internal/seed"
 )
@@ -57,6 +58,7 @@ func main() {
 	api.LoadStaffRoles()
 	middleware.SetStaffChecker(api.IsStaffRole)
 	middleware.SetSessionChecker(middleware.NewSessionCheckerFromDB(sqlDB))
+	pulse.Start(sqlDB)
 
 	globalRL := middleware.NewRateLimiter(180, time.Minute)
 	authRL := middleware.NewRateLimiter(12, time.Minute)

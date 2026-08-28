@@ -17,6 +17,7 @@ import { SocialLinks } from "@/components/SocialLinks";
 import { NewPostButton } from "@/components/NewPostButton";
 import { HeroSponsorCarousel } from "@/components/HeroSponsorCarousel";
 import { useAuth } from "@/lib/auth";
+import { useLiveClock } from "@/hooks/useLiveClock";
 
 const HERO_IMAGE = "/images/hero-gym-headphones.jpg";
 
@@ -27,35 +28,41 @@ export default function HomePage() {
   const [stores, setStores] = useState<TrustedStore[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  useLiveClock(30_000);
+
+  const loadForums = async (cancelled: { current: boolean }) => {
+    try {
+      const [forumData, sponsorData, storeData] = await Promise.all([
+        apiFetch<{ categories: Category[] }>("/forums", { auth: false }),
+        apiFetch<{ banners: SponsorBanner[] }>("/sponsor-banners", {
+          auth: false,
+        }).catch(() => ({ banners: [] as SponsorBanner[] })),
+        apiFetch<{ stores: TrustedStore[] }>("/trusted-stores", {
+          auth: false,
+        }).catch(() => ({ stores: [] as TrustedStore[] })),
+      ]);
+      if (!cancelled.current) {
+        setCategories(forumData.categories);
+        setSponsors(sponsorData.banners ?? []);
+        setStores(storeData.stores ?? []);
+        setError("");
+      }
+    } catch (e) {
+      if (!cancelled.current) {
+        setError(e instanceof Error ? e.message : "Failed to load forums");
+      }
+    } finally {
+      if (!cancelled.current) setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [forumData, sponsorData, storeData] = await Promise.all([
-          apiFetch<{ categories: Category[] }>("/forums", { auth: false }),
-          apiFetch<{ banners: SponsorBanner[] }>("/sponsor-banners", {
-            auth: false,
-          }).catch(() => ({ banners: [] as SponsorBanner[] })),
-          apiFetch<{ stores: TrustedStore[] }>("/trusted-stores", {
-            auth: false,
-          }).catch(() => ({ stores: [] as TrustedStore[] })),
-        ]);
-        if (!cancelled) {
-          setCategories(forumData.categories);
-          setSponsors(sponsorData.banners ?? []);
-          setStores(storeData.stores ?? []);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load forums");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    const cancelled = { current: false };
+    void loadForums(cancelled);
+    const timer = setInterval(() => void loadForums(cancelled), 90_000);
     return () => {
-      cancelled = true;
+      cancelled.current = true;
+      clearInterval(timer);
     };
   }, []);
 

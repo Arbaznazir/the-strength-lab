@@ -9,28 +9,44 @@ import { ThreadList } from "@/components/ThreadList";
 import { Avatar } from "@/components/Avatar";
 import { Sidebar } from "@/components/Sidebar";
 import { renderTextWithMentions } from "@/lib/mentions";
+import { useLiveClock } from "@/hooks/useLiveClock";
 
 export default function WhatsNewPage() {
   const [latest, setLatest] = useState<Thread[]>([]);
   const [featured, setFeatured] = useState<Thread[]>([]);
   const [profilePosts, setProfilePosts] = useState<ProfilePost[]>([]);
   const [error, setError] = useState("");
+  useLiveClock(30_000);
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+
+    const load = async () => {
       try {
         const data = await apiFetch<{
           latestThreads: Thread[];
           profilePosts: ProfilePost[];
           featured: Thread[];
         }>("/whats-new", { auth: false });
-        setLatest(data.latestThreads);
-        setFeatured(data.featured);
-        setProfilePosts(data.profilePosts);
+        if (!cancelled) {
+          setLatest(data.latestThreads);
+          setFeatured(data.featured);
+          setProfilePosts(data.profilePosts);
+          setError("");
+        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load");
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load");
+        }
       }
-    })();
+    };
+
+    void load();
+    const timer = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   return (

@@ -7,45 +7,54 @@ import (
 	"github.com/thestrengthlab/api/internal/models"
 )
 
-// simulatedPresence returns member and guest counts that vary by time of day
-// so the community looks active without relying on real last_seen tracking.
+// simulatedPresence returns member and guest counts that drift every few seconds
+// so the community feels busy (roughly 200–500 online, shifting continuously).
 func simulatedPresence(totalMembers int, now time.Time) (members, guests int) {
 	if totalMembers < 1 {
 		totalMembers = 18593
 	}
 
-	hour := now.UTC().Hour()
-	minute := now.Minute()
+	tick := now.Unix() / 8 // shifts every 8 seconds
 	daySeed := now.UTC().YearDay()
-	tick := now.Unix() / 30 // shifts every 30 seconds
+	minute := now.Minute()
+	second := now.Second()
 
-	var activity float64
+	// Base total in 200–500 range, stepping with time.
+	total := 200 + int((tick*11+int64(daySeed)*3))%31*10
+	total += int(tick%9) - 4 + second/20 - 1
+
+	// Slight time-of-day lift (UTC) without leaving the target band.
+	hour := now.UTC().Hour()
 	switch {
 	case hour >= 16 && hour <= 23:
-		activity = 0.014 + float64(hour-16)*0.0008
+		total += 18
 	case hour >= 10 && hour < 16:
-		activity = 0.009
+		total += 8
 	case hour >= 6 && hour < 10:
-		activity = 0.006
-	default:
-		activity = 0.004
+		total += 4
 	}
 
-	jitter := 0.85 + float64((int(tick)*13+daySeed)%30)/100.0
-	members = int(float64(totalMembers) * activity * jitter)
-	members += int(tick%11) - 5 + (now.Second()/15)*2
-	if members < 48 {
-		members = 48 + int(tick%37)
+	total += (minute % 7) - 3
+	if total < 198 {
+		total = 198 + int(tick%14)
 	}
-	if members > 340 {
-		members = 280 + int(tick%60)
+	if total > 512 {
+		total = 488 + int(tick%24)
 	}
 
-	guestRatio := 0.20 + float64((int(tick)+minute)%15)/100.0
-	guests = int(float64(members) * guestRatio)
-	guests += int(tick % 7)
-	if guests < 12 {
-		guests = 12 + int(tick%28)
+	guestRatio := 0.18 + float64((int(tick)+minute)%14)/100.0
+	guests = int(float64(total) * guestRatio)
+	guests += int(tick%6) - 2
+	if guests < 28 {
+		guests = 28 + int(tick%22)
+	}
+	if guests > total-120 {
+		guests = total - 120
+	}
+	members = total - guests
+	if members < 140 {
+		members = 140
+		guests = total - members
 	}
 	return members, guests
 }

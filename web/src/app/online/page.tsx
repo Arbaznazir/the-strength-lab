@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { LiveOnlineCount } from "@/components/LiveOnlineCount";
 
 export default function OnlinePage() {
   const [guests, setGuests] = useState(0);
@@ -23,7 +24,7 @@ export default function OnlinePage() {
     };
 
     load();
-    const timer = setInterval(load, 30_000);
+    const timer = setInterval(load, 12_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -35,8 +36,9 @@ export default function OnlinePage() {
           Currently online
         </h1>
         <p className="mt-2 text-[var(--muted)]">
-          <span className="font-semibold text-[var(--accent)]">{total}</span>{" "}
-          online · {total - guests} members · {guests} guests
+          <LiveOnlineCount value={total} /> online ·{" "}
+          {(total - guests).toLocaleString("en-US")} members ·{" "}
+          {guests.toLocaleString("en-US")} guests
         </p>
       </div>
 

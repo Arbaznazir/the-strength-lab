@@ -70,6 +70,9 @@ func Run(db *sql.DB) error {
 	if err := ensureYMSLootSale(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("yms loot sale seed: %w", err)
 	}
+	if err := ensureGenLabsLootSale(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("genlabs loot sale seed: %w", err)
+	}
 	if err := ensureAdminPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("admin posts seed: %w", err)
 	}
@@ -143,6 +146,7 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 		{"/sponsors/dmk-labs.mp4", "DMK Labs USA", "https://dmklabsusa.com/"},
 		{"/sponsors/your-muscle-shop.jpg", "Your Muscle Shop", "https://www.yourmuscleshopforum.com/index.php"},
 		{"/sponsors/genlabs.jpg", "GenLabs", "https://www.genlabs.st"},
+		{"/sponsors/genlabs-loot-sale.png", "GenLabs Loot Sale", "https://www.genlabs.st"},
 		{"/sponsors/yms-loot-sale.jpg", "YMS Loot Sale", "https://www.yourmuscleshop.com"},
 	}
 	for _, l := range links {
@@ -240,6 +244,25 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 			return err
 		}
 	}
+
+	var genlabsLoot int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM sponsor_banners
+		WHERE name ILIKE '%genlabs loot%' OR image_url LIKE '%genlabs-loot-sale%'
+	`).Scan(&genlabsLoot); err != nil {
+		return err
+	}
+	if genlabsLoot == 0 {
+		var suppForum any
+		_ = db.QueryRow(`SELECT id FROM forums WHERE slug='supplements'`).Scan(&suppForum)
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, forum_id, sort_order, is_active)
+			VALUES($1,'GenLabs Loot Sale','/sponsors/genlabs-loot-sale.png','https://www.genlabs.st',$2,0,true)
+		`, id, suppForum); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -250,6 +273,13 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 	}
 	// Homepage board keeps the first few; /sponsors lists all partners.
 	stores := []store{
+		{
+			name: "GenLabs Loot Sale", slug: "genlabs-loot-sale", tag: "Trusted Source", color: "#e85d5d",
+			banner: "/sponsors/genlabs-loot-sale.png",
+			link:   "https://www.genlabs.st",
+			desc:   "THE GENLABS LOOT SALE IS LIVE | BIG SALE. BIGGER CHOICES | SHOP NOW OR MISS THEM",
+			forumKey: "supplements", order: 0,
+		},
 		{
 			name: "GenLabs", slug: "genlabs", tag: "Trusted Source", color: "#e85d5d",
 			banner: "/sponsors/genlabs.jpg",

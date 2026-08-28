@@ -23,6 +23,19 @@ detect_terminal() {
     TERM_KIND="custom"
     return
   fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    if [[ -d "/Applications/iTerm.app" ]]; then
+      TERM_BIN="open"
+      TERM_KIND="macos-iterm"
+      return
+    fi
+    if [[ -d "/System/Applications/Utilities/Terminal.app" ]] \
+      || [[ -d "/Applications/Utilities/Terminal.app" ]]; then
+      TERM_BIN="open"
+      TERM_KIND="macos-terminal"
+      return
+    fi
+  fi
   if command -v xdg-terminal-exec >/dev/null 2>&1; then
     TERM_BIN="xdg-terminal-exec"
     TERM_KIND="xdg"
@@ -66,23 +79,79 @@ c_ok()    { printf '\033[1;32m✔\033[0m %s\n' "$*"; }
 c_warn()  { printf '\033[1;33m!\033[0m %s\n' "$*"; }
 c_err()   { printf '\033[1;31m✖\033[0m %s\n' "$*"; }
 
+log_slug() {
+  echo "$1" | tr ' :/' '___'
+}
+
+ensure_env_files() {
+  local pair dest example dir
+  for pair in \
+    "$ROOT/.env:$ROOT/.env.example" \
+    "$API_DIR/.env:$API_DIR/.env.example" \
+    "$WEB_DIR/.env:$WEB_DIR/.env.example"; do
+    dest="${pair%%:*}"
+    example="${pair#*:}"
+    if [[ -f "$dest" ]]; then
+      continue
+    fi
+    if [[ ! -f "$example" ]]; then
+      continue
+    fi
+    cp "$example" "$dest"
+    if [[ "$dest" == "$API_DIR/.env" ]]; then
+      # api/.env.example targets Docker; native ./start.sh uses local ports.
+      sed -i '' \
+        -e 's|@host.docker.internal:5432|@127.0.0.1:5433|g' \
+        -e 's|@postgres:5432|@127.0.0.1:5433|g' \
+        -e 's|redis://redis:6379|redis://127.0.0.1:6379|g' \
+        "$dest" 2>/dev/null \
+        || sed -i \
+          -e 's|@host.docker.internal:5432|@127.0.0.1:5433|g' \
+          -e 's|@postgres:5432|@127.0.0.1:5433|g' \
+          -e 's|redis://redis:6379|redis://127.0.0.1:6379|g' \
+          "$dest"
+    fi
+    dir="$(basename "$(dirname "$dest")")"
+    if [[ "$dir" == "$(basename "$ROOT")" ]]; then
+      c_ok "Created .env from .env.example"
+    else
+      c_ok "Created $dir/.env from .env.example"
+    fi
+  done
+}
+
+read_env_file() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      export "$line"
+    fi
+  done < "$file"
+}
+
+# ./start.sh runs on the host — rewrite docker-only URLs from .env.example copies.
+apply_native_env() {
+  if [[ -f /.dockerenv ]]; then
+    return 0
+  fi
+  case "${DATABASE_URL:-}" in
+    *@host.docker.internal:*|*@postgres:*|*@postgres/*)
+      DATABASE_URL="postgres://strengthlab:strengthlab@127.0.0.1:5433/strengthlab?sslmode=disable"
+      ;;
+  esac
+  case "${REDIS_URL:-}" in
+    redis://redis:*|redis://redis/*)
+      REDIS_URL="redis://127.0.0.1:6379/0"
+      ;;
+  esac
+}
+
 load_env() {
-  if [[ -f "$ENV_FILE" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-      if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
-        export "$line"
-      fi
-    done < "$ENV_FILE"
-  fi
-  if [[ -f "$WEB_DIR/.env" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-      if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
-        export "$line"
-      fi
-    done < "$WEB_DIR/.env"
-  fi
+  read_env_file "$ROOT/.env"
+  read_env_file "$ENV_FILE"
+  read_env_file "$WEB_DIR/.env"
   DATABASE_URL="${DATABASE_URL:-postgres://strengthlab:strengthlab@127.0.0.1:5433/strengthlab?sslmode=disable}"
   API_ADDR="${API_ADDR:-:$API_PORT}"
   JWT_SECRET="${JWT_SECRET:-change-me-in-production-use-long-random-string}"
@@ -91,6 +160,7 @@ load_env() {
   REDIS_URL="${REDIS_URL:-redis://127.0.0.1:6379/0}"
   NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8080}"
   NEXT_PUBLIC_WS_URL="${NEXT_PUBLIC_WS_URL:-ws://localhost:8080}"
+  apply_native_env
 }
 
 # Parse postgres://user:pass@host:port/db
@@ -110,13 +180,23 @@ parse_database_url() {
 
 kill_port() {
   local port="$1"
-  local pids
-  pids="$(ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p"$" {print}' | grep -oP 'pid=\K[0-9]+' | sort -u || true)"
-  if [[ -z "$pids" ]]; then
-    # fuser fallback
-    if command -v fuser >/dev/null 2>&1; then
-      pids="$(fuser "${port}/tcp" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$' | sort -u || true)"
-    fi
+  local pids=""
+
+  # macOS / BSD
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -ti "tcp:${port}" -sTCP:LISTEN 2>/dev/null | sort -u || true)"
+  fi
+  # Linux (portable sed — BSD grep has no -P)
+  if [[ -z "$pids" ]] && command -v ss >/dev/null 2>&1; then
+    pids="$(
+      ss -ltnp 2>/dev/null \
+        | awk -v p=":$port" '$4 ~ p"$" {print}' \
+        | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' \
+        | sort -u || true
+    )"
+  fi
+  if [[ -z "$pids" ]] && command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser "${port}/tcp" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$' | sort -u || true)"
   fi
   if [[ -z "$pids" ]]; then
     c_ok "Port $port is free"
@@ -281,16 +361,92 @@ resolve_node_path() {
   return 1
 }
 
+ensure_web_deps() {
+  if [[ -x "$WEB_DIR/node_modules/.bin/next" ]]; then
+    return 0
+  fi
+  c_info "Installing web dependencies (npm install)..."
+  if ! (cd "$WEB_DIR" && npm install); then
+    c_err "npm install failed in web/ — try: cd web && npm install"
+    exit 1
+  fi
+  c_ok "Web dependencies ready"
+}
+
+wait_for_url() {
+  local url="$1" label="$2" timeout="${3:-30}" i
+  if ! command -v curl >/dev/null 2>&1; then
+    c_warn "curl not found — skipping $label health check"
+    return 0
+  fi
+  for ((i = 1; i <= timeout; i++)); do
+    if curl -sf --max-time 2 "$url" >/dev/null 2>&1; then
+      c_ok "$label is up → $url"
+      return 0
+    fi
+    sleep 1
+  done
+  c_err "$label did not respond at $url (waited ${timeout}s)"
+  return 1
+}
+
+verify_launched() {
+  local failed=0 api_log web_log
+  c_info "Waiting for services to respond..."
+  if ! wait_for_url "http://127.0.0.1:${API_PORT}/healthz" "API" 30; then
+    failed=1
+    api_log="$LOG_DIR/$(log_slug "TSL API :${API_PORT}").log"
+    if [[ -f "$api_log" ]]; then
+      c_warn "API log (last 15 lines):"
+      tail -15 "$api_log"
+    fi
+  fi
+  if ! wait_for_url "http://127.0.0.1:${WEB_PORT}" "Web" 90; then
+    failed=1
+    web_log="$LOG_DIR/$(log_slug "TSL Web :${WEB_PORT}").log"
+    if [[ -f "$web_log" ]]; then
+      c_warn "Web log (last 15 lines):"
+      tail -15 "$web_log"
+    fi
+  fi
+  if [[ "$failed" -ne 0 ]]; then
+    c_err "Startup failed — fix the errors above and run ./start.sh again"
+    exit 1
+  fi
+}
+
 open_terminal() {
   local title="$1"
   local cmd="$2"
+  local slug
+  slug="$(log_slug "$title")"
+  local log_file="$LOG_DIR/${slug}.log"
+  local pid_file="$LOG_DIR/${slug}.pid"
   local run_cmd="cd $(printf '%q' "$ROOT"); $cmd; echo; echo '[process exited — press Enter to close]'; read"
   local bash_lc=(bash --noprofile --norc -lc "$run_cmd")
 
+  case "$TERM_KIND" in
+    macos-terminal|macos-iterm)
+      local app="Terminal" launcher
+      [[ "$TERM_KIND" == "macos-iterm" ]] && app="iTerm"
+      launcher="$LOG_DIR/${slug}.command"
+      {
+        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' "$cmd"
+        printf '%s\n' 'echo'
+        printf '%s\n' "read -r -p 'Press Enter to close...' _"
+      } >"$launcher"
+      chmod +x "$launcher"
+      c_info "Opening $app — $title"
+      open -a "$app" "$launcher"
+      return
+      ;;
+  esac
+
   if [[ -z "$TERM_BIN" ]]; then
     c_warn "No GUI terminal found — starting '$title' in background"
-    nohup bash --noprofile --norc -lc "$cmd" >"$LOG_DIR/${title// /_}.log" 2>&1 &
-    echo $! >"$LOG_DIR/${title// /_}.pid"
+    nohup bash --noprofile --norc -lc "$cmd" >"$log_file" 2>&1 &
+    echo $! >"$pid_file"
     return
   fi
 
@@ -347,6 +503,7 @@ main() {
   else
     c_warn "No GUI terminal detected — will run in background"
   fi
+  ensure_env_files
   load_env
 
   c_info "Freeing ports $API_PORT and $WEB_PORT"
@@ -365,6 +522,7 @@ main() {
     exit 1
   fi
   c_ok "Using npm from $NODE_BIN_DIR"
+  ensure_web_deps
 
   local api_cmd web_cmd
   api_cmd="cd $(printf '%q' "$API_DIR") && \
@@ -384,6 +542,7 @@ export NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080} && \
 export NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8080} && \
 echo 'Web → http://localhost:${WEB_PORT}' && \
 command -v npm >/dev/null || { echo 'npm still not found'; exit 1; } && \
+[[ -x node_modules/.bin/next ]] || { echo 'next not installed — run: cd web && npm install'; exit 1; } && \
 exec npm run dev -- --port ${WEB_PORT}"
 
   c_info "Opening terminal 1 — backend (API)"
@@ -391,6 +550,8 @@ exec npm run dev -- --port ${WEB_PORT}"
   sleep 0.5
   c_info "Opening terminal 2 — frontend (Web)"
   open_terminal "TSL Web :${WEB_PORT}" "$web_cmd"
+
+  verify_launched
 
   c_ok "Launched"
   echo

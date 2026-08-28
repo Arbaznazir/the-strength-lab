@@ -13,6 +13,8 @@ import type {
 import { Avatar } from "./Avatar";
 import { RoleBadge } from "./TagBadge";
 import { TrustedStoresSideBlock } from "./TrustedStores";
+import { LiveOnlineCount } from "./LiveOnlineCount";
+import { useLiveClock } from "@/hooks/useLiveClock";
 
 type StatsPayload = {
   forum: ForumStats;
@@ -23,6 +25,7 @@ type StatsPayload = {
 export function Sidebar() {
   const [trending, setTrending] = useState<Thread[]>([]);
   const [stats, setStats] = useState<StatsPayload | null>(null);
+  useLiveClock(30_000);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,10 +52,12 @@ export function Sidebar() {
 
     loadTrending();
     loadStats();
-    const onlineTimer = setInterval(loadStats, 30_000);
+    const trendingTimer = setInterval(loadTrending, 90_000);
+    const onlineTimer = setInterval(loadStats, 12_000);
 
     return () => {
       cancelled = true;
+      clearInterval(trendingTimer);
       clearInterval(onlineTimer);
     };
   }, []);
@@ -114,11 +119,10 @@ export function Sidebar() {
           </SideBlock>
 
           <SideBlock title="Online">
-            <p className="text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
-              {stats.online.total}
-            </p>
+            <LiveOnlineCount value={stats.online.total} />
             <p className="mt-1 text-xs text-[var(--muted)]">
-              {stats.online.members} members · {stats.online.guests} guests
+              {stats.online.members.toLocaleString("en-US")} members ·{" "}
+              {stats.online.guests.toLocaleString("en-US")} guests
             </p>
           </SideBlock>
 
