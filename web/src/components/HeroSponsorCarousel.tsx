@@ -41,16 +41,21 @@ function featuredSponsors(
   const pool = uniqueByName([...banners, ...extras]);
   const pick = (needle: string) =>
     pool.find((b) => nameKey(b.name).includes(needle));
-  // GenLabs first (client priority), then other featured partners.
+  // GenLabs first (client priority), then loot sale, then other featured partners.
   const first = pick("genlabs") ?? pick("gen labs");
+  const lootSale =
+    pool.find((b) => nameKey(b.name).includes("loot sale")) ??
+    pool.find((b) => b.imageUrl.toLowerCase().includes("loot-sale"));
   const second = pick("steroidify");
   const third = pick("your muscle") ?? pick("muscle shop");
   const fourth = pick("napsgear") ?? pick("naps gear");
   const used = new Set(
-    [first, second, third, fourth].filter(Boolean).map((b) => nameKey(b!.name)),
+    [first, lootSale, second, third, fourth]
+      .filter(Boolean)
+      .map((b) => nameKey(b!.name)),
   );
   const rest = pool.filter((b) => !used.has(nameKey(b.name)));
-  return [first, second, third, fourth, ...rest]
+  return [first, lootSale, second, third, fourth, ...rest]
     .filter((b): b is SponsorBanner => Boolean(b))
     .slice(0, 4);
 }

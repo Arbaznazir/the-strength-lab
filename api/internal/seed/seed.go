@@ -67,6 +67,9 @@ func Run(db *sql.DB) error {
 	if err := ensureGenLabsPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("genlabs posts seed: %w", err)
 	}
+	if err := ensureYMSLootSale(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("yms loot sale seed: %w", err)
+	}
 	if err := ensureAdminPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("admin posts seed: %w", err)
 	}
@@ -140,6 +143,7 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 		{"/sponsors/dmk-labs.mp4", "DMK Labs USA", "https://dmklabsusa.com/"},
 		{"/sponsors/your-muscle-shop.jpg", "Your Muscle Shop", "https://www.yourmuscleshopforum.com/index.php"},
 		{"/sponsors/genlabs.jpg", "GenLabs", "https://www.genlabs.st"},
+		{"/sponsors/yms-loot-sale.jpg", "YMS Loot Sale", "https://www.yourmuscleshop.com"},
 	}
 	for _, l := range links {
 		if _, err := db.Exec(`
@@ -220,6 +224,22 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 			return err
 		}
 	}
+
+	var lootSale int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sponsor_banners WHERE name ILIKE '%loot sale%' OR image_url LIKE '%yms-loot-sale%'`).Scan(&lootSale); err != nil {
+		return err
+	}
+	if lootSale == 0 {
+		var introForum any
+		_ = db.QueryRow(`SELECT id FROM forums WHERE slug='introductions'`).Scan(&introForum)
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, forum_id, sort_order, is_active)
+			VALUES($1,'YMS Loot Sale','/sponsors/yms-loot-sale.jpg','https://www.yourmuscleshop.com',$2,1,true)
+		`, id, introForum); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -236,6 +256,13 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 			link:   "https://www.genlabs.st",
 			desc:   "Biggest GenLabs price drop — injectables, peptides, SARMs, orals, HGH/HMG, insulin, and fat burners.",
 			forumKey: "supplements", order: 0,
+		},
+		{
+			name: "YMS Loot Sale", slug: "yms-loot-sale", tag: "Trusted Source", color: "#e85d5d",
+			banner: "/sponsors/yms-loot-sale.jpg",
+			link:   "https://www.yourmuscleshop.com",
+			desc:   "LOOT SALE — prices just dropped on GenLabs injectables, peptides, orals, HGH/HMG, and more. Only 24 hours left!",
+			forumKey: "introductions", order: 1,
 		},
 		{
 			name: "Anabolic Dragon", slug: "anabolic-dragon", tag: "Trusted Source", color: "#e85d5d",
@@ -587,6 +614,22 @@ func ensureSponsorPosts(db *sql.DB, forumIDs map[string]string, adminID string) 
 			link:       "https://www.genlabs.st",
 			body:       "Official GenLabs promo thread — biggest price drop on injectables, peptides, SARMs, orals, HGH/HMG, insulin, and fat burners.\n\nVisit us:\nhttps://www.genlabs.st\nhttps://www.yourmuscleshop.com\n\nContact us:\nEmail: Support@genlabs.st\nWhatsApp: +91 96917 10589",
 			bannerName: "GenLabs", storeSlug: "genlabs",
+		},
+		{
+			key: "yms-loot-sale", name: "YMS Loot Sale", forum: "introductions",
+			title: "LOOT SALE | PRICES JUST DROPPED | YOUR MUSCLE SHOP — ONLY 24 HOURS LEFT",
+			link:  "https://www.yourmuscleshop.com",
+			body: `Official Your Muscle Shop LOOT SALE thread — prices just dropped to help the community afford more!
+
+We've lowered our prices across GenLabs injectables, peptides, orals, HGH/HMG, and more.
+
+ONLY 24 HOURS LEFT — Limited Time Sale. Don't miss out!
+
+Visit: https://www.yourmuscleshop.com
+Email: wholesale@yourmuscleshop.com
+
+DISCREET SHIPPING | UNBEATABLE PRICES | 100% AUTHENTIC`,
+			bannerName: "YMS Loot Sale", storeSlug: "yms-loot-sale",
 		},
 	}
 

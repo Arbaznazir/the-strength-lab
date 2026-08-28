@@ -15,7 +15,7 @@ export type SponsorBanner = {
   forumId?: string | null;
   threadSlug?: string;
   threadTitle?: string;
-  storeSlug?: string;
+  storeSlug?: string; // from API when banner is linked to a trusted store
   sortOrder: number;
   isActive?: boolean;
 };
@@ -186,8 +186,6 @@ function ForumRow({
   sponsor?: SponsorBanner;
   stores: { name: string; slug: string }[];
 }) {
-  const hubHref = sponsor ? sponsorBannerThreadHref(sponsor, stores) : undefined;
-
   return (
     <div className="forum-row-wrap group border-t border-[var(--line)] py-4 transition-colors hover:bg-[color-mix(in_oklab,var(--accent)_4%,transparent)]">
       <div className="forum-row !border-0 !py-0">
@@ -242,11 +240,11 @@ function ForumRow({
       {sponsor ? (
         <div className="w-full min-w-0">
           <SponsorBannerMedia banner={sponsor} stores={stores} />
-          {hubHref ? (
+          {sponsor.threadSlug ? (
             <p className="mt-2 text-xs text-[var(--muted)]">
               Official post:{" "}
               <Link
-                href={hubHref}
+                href={`/threads/${sponsor.threadSlug}`}
                 className="font-medium text-[var(--fg)] hover:text-[var(--accent)]"
                 onClick={(e) => e.stopPropagation()}
               >

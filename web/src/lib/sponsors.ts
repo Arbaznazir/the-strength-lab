@@ -6,7 +6,12 @@ export function sponsorHubPath(slug: string) {
 export function isSquareSponsorBanner(url?: string, name?: string): boolean {
   const u = (url || "").toLowerCase().split("?")[0] ?? "";
   const n = (name || "").toLowerCase();
-  return u.includes("genlabs") || n.includes("genlabs");
+  return (
+    u.includes("genlabs") ||
+    n.includes("genlabs") ||
+    u.includes("loot-sale") ||
+    n.includes("loot sale")
+  );
 }
 
 export function externalSponsorHref(linkUrl?: string): string | undefined {
@@ -33,6 +38,10 @@ export const SPONSOR_CONTACTS: Record<string, SponsorContactInfo> = {
     email: "Support@genlabs.st",
     whatsapp: "+91 96917 10589",
   },
+  "yms-loot-sale": {
+    visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
+    email: "wholesale@yourmuscleshop.com",
+  },
 };
 
 export function whatsappHref(phone: string): string {
@@ -55,16 +64,31 @@ export function sponsorSlugForName(
   })?.slug;
 }
 
-/** Top carousel / homepage banners → sponsor hub (threads), not the external shop. */
+/** When official thread slugs differ from trusted-store slugs. */
+const OFFICIAL_THREAD_HUB_SLUG: Record<string, string> = {
+  "dmk-labs": "dmk-labs-usa",
+};
+
+/** Map `official-{key}` thread slugs to sponsor hub slugs. */
+export function hubSlugFromOfficialThread(threadSlug?: string): string | undefined {
+  if (!threadSlug?.startsWith("official-")) return undefined;
+  const key = threadSlug.slice("official-".length);
+  return OFFICIAL_THREAD_HUB_SLUG[key] ?? key;
+}
+
+/** Top carousel / homepage banners → sponsor hub, not the thread or external shop. */
 export function sponsorSlideHref(
   slide: {
     name: string;
     threadSlug?: string;
     storeSlug?: string;
   },
-  stores: { name: string; slug: string }[],
+  stores: { name: string; slug: string }[] = [],
 ): string | undefined {
-  const slug = slide.storeSlug ?? sponsorSlugForName(slide.name, stores);
+  const slug =
+    slide.storeSlug ??
+    sponsorSlugForName(slide.name, stores) ??
+    hubSlugFromOfficialThread(slide.threadSlug);
   if (slug) return sponsorHubPath(slug);
   if (slide.threadSlug) return `/threads/${slide.threadSlug}`;
   return undefined;

@@ -20,6 +20,7 @@ type SponsorBanner struct {
 	ForumName   string  `json:"forumName,omitempty"`
 	ThreadSlug  string  `json:"threadSlug,omitempty"`
 	ThreadTitle string  `json:"threadTitle,omitempty"`
+	StoreSlug   string  `json:"storeSlug,omitempty"`
 	SortOrder   int     `json:"sortOrder"`
 	IsActive    bool    `json:"isActive"`
 }
@@ -47,10 +48,12 @@ func (a *API) ListSponsorBanners(w http.ResponseWriter, r *http.Request) {
 		SELECT s.id::text, s.name, s.image_url, s.link_url,
 		       s.forum_id::text, COALESCE(f.slug,''), COALESCE(f.name,''),
 		       s.sort_order, s.is_active,
-		       COALESCE(th.slug,''), COALESCE(th.title,'')
+		       COALESCE(th.slug,''), COALESCE(th.title,''),
+		       COALESCE(ts.slug,'')
 		FROM sponsor_banners s
 		LEFT JOIN forums f ON f.id = s.forum_id
 		LEFT JOIN threads th ON th.id = s.thread_id
+		LEFT JOIN trusted_stores ts ON ts.thread_id = s.thread_id
 	`
 	if !adminView {
 		q += ` WHERE s.is_active = true `
@@ -72,7 +75,7 @@ func (a *API) ListSponsorBanners(w http.ResponseWriter, r *http.Request) {
 			&s.ID, &s.Name, &s.ImageURL, &s.LinkURL,
 			&forumID, &s.ForumSlug, &s.ForumName,
 			&s.SortOrder, &s.IsActive,
-			&s.ThreadSlug, &s.ThreadTitle,
+			&s.ThreadSlug, &s.ThreadTitle, &s.StoreSlug,
 		); err != nil {
 			continue
 		}
