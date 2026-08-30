@@ -41,25 +41,43 @@ function featuredSponsors(
   const pool = uniqueByName([...banners, ...extras]);
   const pick = (needle: string) =>
     pool.find((b) => nameKey(b.name).includes(needle));
+  const priceDrop =
+    pool.find((b) => nameKey(b.name).includes("price drop")) ??
+    pool.find((b) => b.imageUrl.toLowerCase().includes("genlabs-price-drop"));
   const genlabsLoot =
     pool.find((b) => nameKey(b.name).includes("genlabs loot")) ??
     pool.find((b) => b.imageUrl.toLowerCase().includes("genlabs-loot-sale"));
-  const genlabs = pick("genlabs") ?? pick("gen labs");
+  const genlabs =
+    pool.find((b) => nameKey(b.name) === "genlabs") ??
+    pool.find(
+      (b) =>
+        nameKey(b.name).includes("genlabs") &&
+        b !== priceDrop &&
+        b !== genlabsLoot,
+    );
   const otherLoot =
-    genlabsLoot == null
-      ? pool.find((b) => nameKey(b.name).includes("loot sale")) ??
-        pool.find((b) => b.imageUrl.toLowerCase().includes("loot-sale"))
-      : undefined;
+    pool.find(
+      (b) =>
+        nameKey(b.name).includes("loot sale") &&
+        b !== priceDrop &&
+        b !== genlabsLoot,
+    ) ??
+    pool.find(
+      (b) =>
+        b.imageUrl.toLowerCase().includes("loot-sale") &&
+        b !== priceDrop &&
+        b !== genlabsLoot,
+    );
   const second = pick("steroidify");
   const third = pick("your muscle") ?? pick("muscle shop");
   const fourth = pick("napsgear") ?? pick("naps gear");
   const used = new Set(
-    [genlabsLoot, genlabs, otherLoot, second, third, fourth]
+    [priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth]
       .filter(Boolean)
       .map((b) => nameKey(b!.name)),
   );
   const rest = pool.filter((b) => !used.has(nameKey(b.name)));
-  return [genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
+  return [priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
     .filter((b): b is SponsorBanner => Boolean(b))
     .slice(0, 4);
 }
@@ -87,13 +105,9 @@ export function HeroSponsorCarousel({
     return () => clearInterval(id);
   }, [slides.length]);
 
-  useEffect(() => {
-    if (index >= slides.length) setIndex(0);
-  }, [index, slides.length]);
-
   if (!slides.length) return null;
 
-  const current = slides[index] ?? slides[0];
+  const current = slides[index % slides.length] ?? slides[0];
   const src = mediaURL(current.imageUrl) || current.imageUrl;
   const href = sponsorSlideHref(current, stores);
   const fitClass = "pointer-events-none h-full w-full object-cover";

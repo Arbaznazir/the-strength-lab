@@ -34,6 +34,14 @@ export const SPONSOR_CONTACTS: Record<string, SponsorContactInfo> = {
     email: "Support@genlabs.st",
     whatsapp: "+91 96917 10589",
   },
+  "genlabs-price-drop": {
+    visit: [
+      { label: "www.genlabs.st", href: "https://www.genlabs.st" },
+      { label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" },
+    ],
+    email: "Support@genlabs.st",
+    whatsapp: "+91 96917 10589",
+  },
   "yms-loot-sale": {
     visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
     email: "wholesale@yourmuscleshop.com",
