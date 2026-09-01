@@ -41,6 +41,9 @@ function featuredSponsors(
   const pool = uniqueByName([...banners, ...extras]);
   const pick = (needle: string) =>
     pool.find((b) => nameKey(b.name).includes(needle));
+  const nadPlus =
+    pool.find((b) => nameKey(b.name).includes("nad+")) ??
+    pool.find((b) => b.imageUrl.toLowerCase().includes("nad-plus-deals"));
   const priceDrop =
     pool.find((b) => nameKey(b.name).includes("price drop")) ??
     pool.find((b) => b.imageUrl.toLowerCase().includes("genlabs-price-drop"));
@@ -53,31 +56,34 @@ function featuredSponsors(
       (b) =>
         nameKey(b.name).includes("genlabs") &&
         b !== priceDrop &&
-        b !== genlabsLoot,
+        b !== genlabsLoot &&
+        b !== nadPlus,
     );
   const otherLoot =
     pool.find(
       (b) =>
         nameKey(b.name).includes("loot sale") &&
         b !== priceDrop &&
-        b !== genlabsLoot,
+        b !== genlabsLoot &&
+        b !== nadPlus,
     ) ??
     pool.find(
       (b) =>
         b.imageUrl.toLowerCase().includes("loot-sale") &&
         b !== priceDrop &&
-        b !== genlabsLoot,
+        b !== genlabsLoot &&
+        b !== nadPlus,
     );
   const second = pick("steroidify");
   const third = pick("your muscle") ?? pick("muscle shop");
   const fourth = pick("napsgear") ?? pick("naps gear");
   const used = new Set(
-    [priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth]
+    [nadPlus, priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth]
       .filter(Boolean)
       .map((b) => nameKey(b!.name)),
   );
   const rest = pool.filter((b) => !used.has(nameKey(b.name)));
-  return [priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
+  return [nadPlus, priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
     .filter((b): b is SponsorBanner => Boolean(b))
     .slice(0, 4);
 }

@@ -42,6 +42,14 @@ export const SPONSOR_CONTACTS: Record<string, SponsorContactInfo> = {
     email: "Support@genlabs.st",
     whatsapp: "+91 96917 10589",
   },
+  "nad-plus-deals": {
+    visit: [
+      { label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" },
+      { label: "www.genlabs.st", href: "https://www.genlabs.st" },
+    ],
+    email: "support@yourmuscleshop.com",
+    whatsapp: "+91 96917 10589",
+  },
   "yms-loot-sale": {
     visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
     email: "wholesale@yourmuscleshop.com",
