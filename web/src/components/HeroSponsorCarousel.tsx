@@ -41,11 +41,14 @@ function featuredSponsors(
   const pool = uniqueByName([...banners, ...extras]);
   const pick = (needle: string) =>
     pool.find((b) => nameKey(b.name).includes(needle));
+  const ymsPriceAlert =
+    pool.find((b) => nameKey(b.name).includes("yms price drop")) ??
+    pool.find((b) => b.imageUrl.toLowerCase().includes("yms-price-drop-alert"));
   const nadPlus =
     pool.find((b) => nameKey(b.name).includes("nad+")) ??
     pool.find((b) => b.imageUrl.toLowerCase().includes("nad-plus-deals"));
   const priceDrop =
-    pool.find((b) => nameKey(b.name).includes("price drop")) ??
+    pool.find((b) => nameKey(b.name) === "genlabs price drop") ??
     pool.find((b) => b.imageUrl.toLowerCase().includes("genlabs-price-drop"));
   const genlabsLoot =
     pool.find((b) => nameKey(b.name).includes("genlabs loot")) ??
@@ -57,7 +60,8 @@ function featuredSponsors(
         nameKey(b.name).includes("genlabs") &&
         b !== priceDrop &&
         b !== genlabsLoot &&
-        b !== nadPlus,
+        b !== nadPlus &&
+        b !== ymsPriceAlert,
     );
   const otherLoot =
     pool.find(
@@ -65,25 +69,27 @@ function featuredSponsors(
         nameKey(b.name).includes("loot sale") &&
         b !== priceDrop &&
         b !== genlabsLoot &&
-        b !== nadPlus,
+        b !== nadPlus &&
+        b !== ymsPriceAlert,
     ) ??
     pool.find(
       (b) =>
         b.imageUrl.toLowerCase().includes("loot-sale") &&
         b !== priceDrop &&
         b !== genlabsLoot &&
-        b !== nadPlus,
+        b !== nadPlus &&
+        b !== ymsPriceAlert,
     );
   const second = pick("steroidify");
   const third = pick("your muscle") ?? pick("muscle shop");
   const fourth = pick("napsgear") ?? pick("naps gear");
   const used = new Set(
-    [nadPlus, priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth]
+    [ymsPriceAlert, nadPlus, priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth]
       .filter(Boolean)
       .map((b) => nameKey(b!.name)),
   );
   const rest = pool.filter((b) => !used.has(nameKey(b.name)));
-  return [nadPlus, priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
+  return [ymsPriceAlert, nadPlus, priceDrop, genlabsLoot, genlabs, otherLoot, second, third, fourth, ...rest]
     .filter((b): b is SponsorBanner => Boolean(b))
     .slice(0, 4);
 }

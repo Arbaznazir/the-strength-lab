@@ -76,6 +76,9 @@ func Run(db *sql.DB) error {
 	if err := ensureNADPlusDeals(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("nad plus deals seed: %w", err)
 	}
+	if err := ensureYMSPriceDropAlert(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("yms price drop alert seed: %w", err)
+	}
 	if err := ensureAdminPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("admin posts seed: %w", err)
 	}
@@ -151,6 +154,7 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 		{"/sponsors/genlabs.jpg", "GenLabs", "https://www.genlabs.st"},
 		{"/sponsors/genlabs-loot-sale.png", "GenLabs Loot Sale", "https://www.genlabs.st"},
 		{"/sponsors/nad-plus-deals.png", "NAD+ Deals", "https://www.yourmuscleshop.com"},
+		{"/sponsors/yms-price-drop-alert.png", "YMS Price Drop Alert", "https://www.yourmuscleshop.com"},
 		{"/sponsors/yms-loot-sale.jpg", "YMS Loot Sale", "https://www.yourmuscleshop.com"},
 	}
 	for _, l := range links {
@@ -286,6 +290,25 @@ func syncSponsorBannerLinks(db *sql.DB) error {
 			return err
 		}
 	}
+
+	var ymsAlert int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM sponsor_banners
+		WHERE name = 'YMS Price Drop Alert' OR image_url LIKE '%yms-price-drop-alert%'
+	`).Scan(&ymsAlert); err != nil {
+		return err
+	}
+	if ymsAlert == 0 {
+		var introForum any
+		_ = db.QueryRow(`SELECT id FROM forums WHERE slug='introductions'`).Scan(&introForum)
+		id := uuid.New()
+		if _, err := db.Exec(`
+			INSERT INTO sponsor_banners(id, name, image_url, link_url, forum_id, sort_order, is_active)
+			VALUES($1,'YMS Price Drop Alert','/sponsors/yms-price-drop-alert.png','https://www.yourmuscleshop.com',$2,0,true)
+		`, id, introForum); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -296,6 +319,13 @@ func ensureTrustedStores(db *sql.DB, forumIDs map[string]string) error {
 	}
 	// Homepage board keeps the first few; /sponsors lists all partners.
 	stores := []store{
+		{
+			name: "YMS Price Drop Alert", slug: "yms-price-drop-alert", tag: "Trusted Source", color: "#e85d5d",
+			banner: "/sponsors/yms-price-drop-alert.png",
+			link:   "https://www.yourmuscleshop.com",
+			desc:   "PRICE DROP ALERT 🚨 | LIMITED-TIME PRICES WHILE STOCK LASTS",
+			forumKey: "introductions", order: 0,
+		},
 		{
 			name: "NAD+ Deals", slug: "nad-plus-deals", tag: "Trusted Source", color: "#e85d5d",
 			banner: "/sponsors/nad-plus-deals.png",

@@ -50,6 +50,11 @@ export const SPONSOR_CONTACTS: Record<string, SponsorContactInfo> = {
     email: "support@yourmuscleshop.com",
     whatsapp: "+91 96917 10589",
   },
+  "yms-price-drop-alert": {
+    visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
+    email: "support@yourmuscleshop.com",
+    whatsapp: "+91 96917 10589",
+  },
   "yms-loot-sale": {
     visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
     email: "wholesale@yourmuscleshop.com",
