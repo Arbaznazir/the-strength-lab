@@ -79,6 +79,15 @@ func Run(db *sql.DB) error {
 	if err := ensureYMSPriceDropAlert(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("yms price drop alert seed: %w", err)
 	}
+	if err := ensureYMSPainOSoma(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("yms pain-o-soma seed: %w", err)
+	}
+	if err := ensureYMSViagraPriceDrop(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("yms viagra price drop seed: %w", err)
+	}
+	if err := ensureGenLabsWholesale(db, forumIDs, adminID); err != nil {
+		return fmt.Errorf("genlabs wholesale seed: %w", err)
+	}
 	if err := ensureAdminPosts(db, forumIDs, adminID); err != nil {
 		return fmt.Errorf("admin posts seed: %w", err)
 	}

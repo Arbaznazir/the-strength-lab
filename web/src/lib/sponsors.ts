@@ -59,6 +59,24 @@ export const SPONSOR_CONTACTS: Record<string, SponsorContactInfo> = {
     visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
     email: "wholesale@yourmuscleshop.com",
   },
+  "yms-pain-o-soma": {
+    visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
+    email: "support@yourmuscleshop.com",
+    whatsapp: "+91 96917 10589",
+  },
+  "yms-viagra-price-drop": {
+    visit: [{ label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" }],
+    email: "support@yourmuscleshop.com",
+    whatsapp: "+91 96917 10589",
+  },
+  "genlabs-wholesale": {
+    visit: [
+      { label: "www.yourmuscleshop.com", href: "https://www.yourmuscleshop.com" },
+      { label: "www.genlabs.st", href: "https://www.genlabs.st" },
+    ],
+    email: "support@yourmuscleshop.com",
+    whatsapp: "+91 96917 10589",
+  },
 };
 
 export function whatsappHref(phone: string): string {
